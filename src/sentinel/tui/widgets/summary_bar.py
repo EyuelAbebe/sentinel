@@ -66,7 +66,6 @@ class SummaryBar(Horizontal):
         height: 7;
         align: center middle;
         padding: 1 2;
-        gap: 1;
     }
     """
 
