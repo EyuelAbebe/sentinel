@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <span class="logo">◈</span>
+      <span class="title">Sentinel</span>
+      <span id="status-dot" class="dot dot-unknown" title="Checking…"></span>
+    </header>
+
+    <div id="current-site">
+      <div class="label">Current site</div>
+      <div id="hostname" class="hostname">—</div>
+      <div id="risk-badge" class="badge badge-unknown">UNKNOWN</div>
+    </div>
+
+    <div id="classification-detail">
+      <div id="org-line" class="detail-line hidden">
+        <span class="detail-key">Org</span>
+        <span id="org-value" class="detail-value">—</span>
+      </div>
+      <div id="category-line" class="detail-line hidden">
+        <span class="detail-key">Category</span>
+        <span id="category-value" class="detail-value">—</span>
+      </div>
+    </div>
+
+    <div id="sentinel-status">
+      <div id="status-message" class="status-msg status-disconnected">
+        Sentinel not running — start with <code>sentinel</code>
+      </div>
+    </div>
+
+    <div id="recent-domains">
+      <div class="label">Recent sites</div>
+      <ul id="domain-list"></ul>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
