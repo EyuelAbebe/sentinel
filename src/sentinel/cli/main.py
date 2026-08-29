@@ -268,6 +268,8 @@ def scan_deep(
 
 
 def _run_scan(output_json: bool = False) -> None:
+    import time
+
     from sentinel.application.scan_service import QuickScanService
     from sentinel.collectors.network_psutil import PsutilNetworkCollector
     from sentinel.collectors.process_psutil import PsutilProcessCollector
@@ -277,7 +279,9 @@ def _run_scan(output_json: bool = False) -> None:
         network_collector=PsutilNetworkCollector(),
     )
 
+    t0 = time.monotonic()
     result = asyncio.run(svc.run())
+    duration = time.monotonic() - t0
 
     if output_json:
         from sentinel.cli.renderers.json_renderer import render_scan_result_json
@@ -286,7 +290,7 @@ def _run_scan(output_json: bool = False) -> None:
     else:
         from sentinel.cli.renderers.rich_renderer import render_scan_result
 
-        render_scan_result(result)
+        render_scan_result(result, duration=duration)
 
 
 # ── standalone subcommands ─────────────────────────────────────────────────

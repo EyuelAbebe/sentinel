@@ -8,6 +8,31 @@ from textual.widgets import DataTable, Footer, Static
 
 from sentinel.application.correlation import CorrelatedProcess
 from sentinel.application.scan_service import ScanResult
+from sentinel.domain.enums import Severity
+from sentinel.domain.findings import Finding
+
+_SEV_FLAG: dict[Severity, str] = {
+    Severity.CRITICAL: "[bold red]⬛[/bold red]",
+    Severity.HIGH: "[red]●[/red]",
+    Severity.MEDIUM: "[dark_orange]◆[/dark_orange]",
+    Severity.LOW: "[yellow]▲[/yellow]",
+}
+
+_SEV_COLOR: dict[Severity, str] = {
+    Severity.CRITICAL: "bold red",
+    Severity.HIGH: "red",
+    Severity.MEDIUM: "dark_orange",
+    Severity.LOW: "yellow",
+}
+
+_SEV_ORDER: dict[Severity, int] = {
+    Severity.LOW: 0,
+    Severity.MEDIUM: 1,
+    Severity.HIGH: 2,
+    Severity.CRITICAL: 3,
+}
+
+_SUSPICIOUS_PATH_FRAGMENTS = ("/tmp/", "/var/tmp/", "/Downloads/", "/Temp/")
 
 
 class AppsScreen(Screen[None]):
@@ -21,23 +46,38 @@ class AppsScreen(Screen[None]):
         height: 10;
         border-top: solid $primary;
         padding: 1 2;
-        color: $text-muted;
+        background: $panel;
     }
     """
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._correlated: list[CorrelatedProcess] = []
+        self._findings: list[Finding] = []
 
     def compose(self) -> ComposeResult:
         table: DataTable[str] = DataTable(id="process-table", cursor_type="row")
-        table.add_columns("PID", "Name", "User", "Ports", "Path")
+        table.add_columns("!", "PID", "Name", "User", "Ports", "Path")
         yield table
-        yield Static("[dim]Select a process to inspect[/dim]", id="detail-panel")
+        yield Static(
+            "[dim]↑ / ↓  navigate · Enter  inspect · [yellow]▲[/yellow] / [red]●[/red] / [bold red]⬛[/bold red]  flagged[/dim]",
+            id="detail-panel",
+        )
         yield Footer()
 
     def update_result(self, result: ScanResult) -> None:
         self._correlated = result.correlated
+        self._findings = result.findings
+
+        # Map process name → worst finding
+        flagged: dict[str, Finding] = {}
+        for f in result.findings:
+            existing = flagged.get(f.subject)
+            if existing is None or _SEV_ORDER.get(f.severity, 0) > _SEV_ORDER.get(
+                existing.severity, 0
+            ):
+                flagged[f.subject] = f
+
         table = self.query_one("#process-table", DataTable)
         table.clear()
         for cp in result.correlated:
@@ -45,7 +85,17 @@ class AppsScreen(Screen[None]):
                 continue
             identity = cp.observation.identity
             ports = ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
+
+            finding = flagged.get(identity.name)
+            if finding:
+                flag = _SEV_FLAG.get(finding.severity, "[yellow]![/yellow]")
+            elif any(p in (identity.executable_path or "") for p in _SUSPICIOUS_PATH_FRAGMENTS):
+                flag = "[yellow]▲[/yellow]"
+            else:
+                flag = ""
+
             table.add_row(
+                flag,
                 str(identity.pid),
                 identity.name,
                 identity.user or "",
@@ -62,16 +112,34 @@ class AppsScreen(Screen[None]):
         if not cp:
             return
         identity = cp.observation.identity
-        lines = [
-            f"[bold]{identity.name}[/bold]  PID {identity.pid}",
-            f"Path    {identity.executable_path or '(unknown)'}",
-            f"User    {identity.user or '(unknown)'}",
-            f"PPID    {identity.parent_pid or '—'}",
+
+        # Find associated findings (by process name)
+        proc_findings = [f for f in self._findings if f.subject == identity.name]
+
+        lines: list[str] = [
+            f"[bold]{identity.name}[/bold]  [dim]PID {identity.pid}[/dim]",
+            "",
+        ]
+
+        if proc_findings:
+            for finding in proc_findings:
+                color = _SEV_COLOR.get(finding.severity, "red")
+                flag = _SEV_FLAG.get(finding.severity, "!")
+                lines.append(f"  {flag} [{color}]{finding.title}[/{color}]")
+                for r in finding.reasons[:2]:
+                    lines.append(f"    [dim]› {r.description}[/dim]")
+            lines.append("")
+
+        lines += [
+            f"  [dim]Path[/dim]    {identity.executable_path or '(unknown)'}",
+            f"  [dim]User[/dim]    {identity.user or '(unknown)'}",
+            f"  [dim]PPID[/dim]    {identity.parent_pid or '—'}",
         ]
         if cp.listeners:
             ports = ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
-            lines.append(f"Ports   {ports}")
+            lines.append(f"  [dim]Ports[/dim]   {ports}")
         if identity.command_line:
             cmd = " ".join(identity.command_line)[:120]
-            lines.append(f"Cmd     {cmd}")
+            lines.append(f"  [dim]Cmd[/dim]     {cmd}")
+
         self.query_one("#detail-panel", Static).update("\n".join(lines))

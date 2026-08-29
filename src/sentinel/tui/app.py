@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from datetime import UTC, datetime
 
 from textual.app import App, ComposeResult
@@ -24,12 +25,21 @@ from sentinel.tui.screens.network import NetworkScreen
 from sentinel.tui.screens.overview import OverviewScreen
 
 _EVENT_LABEL: dict[EventType, tuple[str, str]] = {
-    EventType.PROCESS_STARTED: ("green", "⬆ process started"),
-    EventType.PROCESS_STOPPED: ("dim", "⬇ process stopped"),
-    EventType.PORT_OPENED: ("yellow", "◆ port opened"),
-    EventType.PORT_CLOSED: ("dim", "◇ port closed"),
-    EventType.CONNECTION_OPENED: ("cyan", "→ connection"),
-    EventType.CONNECTION_CLOSED: ("dim", "← disconnected"),
+    EventType.PROCESS_STARTED: ("green", "⬆ PROC"),
+    EventType.PROCESS_STOPPED: ("dim", "⬇ PROC"),
+    EventType.PORT_OPENED: ("yellow", "◆ PORT"),
+    EventType.PORT_CLOSED: ("dim", "◇ PORT"),
+    EventType.CONNECTION_OPENED: ("cyan", "→ CONN"),
+    EventType.CONNECTION_CLOSED: ("dim", "← DISC"),
+    EventType.SITE_VISITED: ("blue", "◎ SITE"),
+    EventType.THIRD_PARTY_REQUEST: ("dark_orange", "⇢ 3RD"),
+}
+
+_SEV_FIND_COLOR = {
+    "low": "yellow",
+    "medium": "dark_orange",
+    "high": "red",
+    "critical": "bold red",
 }
 
 
@@ -41,17 +51,22 @@ class _ActivityLine(Message):
 
 class SentinelApp(App[None]):
     TITLE = "Sentinel"
-    SUB_TITLE = "Local Security Monitor"
+    SUB_TITLE = "Local Security Monitor  ·  Press ? for help"
 
     CSS = """
     TabbedContent {
         height: 1fr;
     }
+    Tab.-active {
+        text-style: bold;
+        color: $success;
+    }
     """
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("s", "rescan", "Scan", show=True),
+        Binding("s", "rescan", "Rescan", show=True),
+        Binding("p", "toggle_pause", "Pause", show=True),
         Binding("question_mark", "show_help", "Help", key_display="?"),
         Binding("1", "tab_overview", "Overview", show=False),
         Binding("2", "tab_apps", "Apps", show=False),
@@ -84,13 +99,13 @@ class SentinelApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with TabbedContent(id="tabs"):
-            with TabPane("Overview", id="tab-overview"):
+            with TabPane("1 Overview", id="tab-overview"):
                 yield OverviewScreen(id="overview")
-            with TabPane("Apps", id="tab-apps"):
+            with TabPane("2 Apps", id="tab-apps"):
                 yield AppsScreen(id="apps")
-            with TabPane("Network", id="tab-network"):
+            with TabPane("3 Network", id="tab-network"):
                 yield NetworkScreen(id="network")
-            with TabPane("Findings", id="tab-findings"):
+            with TabPane("4 Findings", id="tab-findings"):
                 yield FindingsScreen(id="findings")
 
     async def on_mount(self) -> None:
@@ -105,10 +120,28 @@ class SentinelApp(App[None]):
     async def _on_domain_event(self, event: DomainEvent) -> None:
         ts = datetime.now(UTC).strftime("%H:%M:%S")
         color, label = _EVENT_LABEL.get(event.event_type, ("dim", event.event_type.value))
+
+        # Build the most informative detail string from payload
         name = event.payload.get("name", "")
+        pid = event.payload.get("pid", "")
         port = event.payload.get("local_port", "")
-        detail = name or (f":{port}" if port else "")
-        text = f"{ts}  [{color}]{label}[/{color}]"
+        remote = event.payload.get("remote_address", "")
+        domain = event.payload.get("domain", "")
+
+        if name and pid:
+            detail = f"{name} (pid {pid})"
+        elif name:
+            detail = name
+        elif domain:
+            detail = domain
+        elif port:
+            detail = f":{port}"
+        elif remote:
+            detail = remote
+        else:
+            detail = ""
+
+        text = f"[dim]{ts}[/dim]  [{color}]{label}[/{color}]"
         if detail:
             text += f"  [bold]{detail}[/bold]"
         self.post_message(_ActivityLine(text))
@@ -125,11 +158,28 @@ class SentinelApp(App[None]):
             await self._do_scan()
 
     async def _do_scan(self) -> None:
+        t0 = time.monotonic()
+        with contextlib.suppress(Exception):
+            self.query_one("#overview", OverviewScreen).set_scanning(True)
         try:
             result = await self._svc.run()
             self._last_result = result
+            duration = time.monotonic() - t0
+            with contextlib.suppress(Exception):
+                self.query_one("#overview", OverviewScreen).set_scanning(False, result, duration)
             self._push_result(result)
+            if result.findings:
+                n = len(result.findings)
+                self.notify(
+                    f"⚠  {n} finding{'s' if n > 1 else ''} need attention",
+                    severity="warning",
+                    timeout=4,
+                )
+            else:
+                self.notify("✓  All clear", severity="information", timeout=2)
         except Exception as exc:
+            with contextlib.suppress(Exception):
+                self.query_one("#overview", OverviewScreen).set_scanning(False)
             self.notify(f"Scan error: {exc}", severity="error")
 
     def _push_result(self, result: ScanResult) -> None:
@@ -142,18 +192,32 @@ class SentinelApp(App[None]):
         with contextlib.suppress(Exception):
             self.query_one("#findings", FindingsScreen).update_result(result)
 
+        # Log findings into the activity stream
         if result.findings:
             ts = datetime.now(UTC).strftime("%H:%M:%S")
             with contextlib.suppress(Exception):
                 overview = self.query_one("#overview", OverviewScreen)
                 for f in result.findings:
+                    color = _SEV_FIND_COLOR.get(f.severity.value, "red")
                     overview.log_activity(
-                        f"{ts} [bold red]![/bold red] {f.title}  {f.severity.upper()}"
+                        f"[dim]{ts}[/dim]  [{color}]● FIND[/{color}]"
+                        f"  [bold]{f.title}[/bold]"
+                        f"  [{color}]{f.severity.upper()}[/{color}]"
                     )
 
     def action_rescan(self) -> None:
+        if self._paused:
+            self.notify("⏸  Paused — press p to resume first", severity="warning", timeout=2)
+            return
         self.run_worker(self._do_scan(), exclusive=False)
-        self.notify("Scanning…", timeout=1)
+
+    def action_toggle_pause(self) -> None:
+        self._paused = not self._paused
+        if self._paused:
+            self.notify("⏸  Live monitoring paused", severity="warning", timeout=2)
+        else:
+            self.notify("▶  Live monitoring resumed", severity="information", timeout=2)
+            self.run_worker(self._do_scan(), exclusive=False)
 
     def action_show_help(self) -> None:
         self.push_screen(HelpScreen())
