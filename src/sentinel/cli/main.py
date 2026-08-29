@@ -20,7 +20,9 @@ app = typer.Typer(
     invoke_without_command=True,
 )
 scan_app = typer.Typer(help="Run security scans.")
+baseline_app = typer.Typer(help="Manage baseline expectations.")
 app.add_typer(scan_app, name="scan")
+app.add_typer(baseline_app, name="baseline")
 
 console = Console()
 err_console = Console(stderr=True)
@@ -214,6 +216,98 @@ def network() -> None:
 def watch() -> None:
     """Launch the interactive TUI monitor."""
     _launch_tui()
+
+
+# ── baseline subcommands ───────────────────────────────────────────────────
+
+
+@baseline_app.command("list")
+def baseline_list() -> None:
+    """Show all baseline entries."""
+    from sentinel.application.baseline_service import BaselineService
+    from sentinel.storage.baseline_repository import BaselineRepository
+    from sentinel.storage.database import get_engine, init_db
+
+    engine = get_engine()
+    init_db(engine)
+    from sqlalchemy.orm import Session
+
+    with Session(engine) as session:
+        svc = BaselineService(BaselineRepository(session))
+        entries = svc.list_all()
+
+    if not entries:
+        console.print("[dim]No baseline entries. Use 'sentinel baseline add' to add one.[/dim]")
+        return
+
+    table = Table(title="Baselines", box=box.SIMPLE_HEAD, header_style="bold cyan")
+    table.add_column("ID", style="dim", width=4)
+    table.add_column("Type")
+    table.add_column("Subject")
+    table.add_column("Reason")
+    for e in entries:
+        table.add_row(str(e.id), e.subject_type, e.subject, e.reason or "—")
+    console.print(table)
+
+
+@baseline_app.command("add")
+def baseline_add(
+    process: str | None = typer.Option(None, "--process", "-p", help="Process name to allow."),
+    port: int | None = typer.Option(None, "--port", help="Port number to allow."),
+    domain: str | None = typer.Option(None, "--domain", "-d", help="Domain to allow."),
+    reason: str = typer.Option("", "--reason", "-r", help="Why this is expected."),
+) -> None:
+    """Add a process, port, or domain to the baseline."""
+    from sqlalchemy.orm import Session
+
+    from sentinel.application.baseline_service import BaselineService
+    from sentinel.storage.baseline_repository import BaselineRepository
+    from sentinel.storage.database import get_engine, init_db
+
+    if not any([process, port, domain]):
+        console.print("[red]Provide at least one of --process, --port, or --domain.[/red]")
+        raise typer.Exit(1)
+
+    engine = get_engine()
+    init_db(engine)
+    with Session(engine) as session:
+        svc = BaselineService(BaselineRepository(session))
+        if process:
+            entry = svc.add_process(process, reason=reason)
+            session.commit()
+            console.print(f"[green]Added process baseline:[/green] {entry.subject} (id={entry.id})")
+        if port is not None:
+            entry = svc.add_port(port, reason=reason)
+            session.commit()
+            console.print(f"[green]Added port baseline:[/green] :{entry.subject} (id={entry.id})")
+        if domain:
+            entry = svc.add_domain(domain, reason=reason)
+            session.commit()
+            console.print(f"[green]Added domain baseline:[/green] {entry.subject} (id={entry.id})")
+
+
+@baseline_app.command("remove")
+def baseline_remove(
+    entry_id: int = typer.Argument(..., help="Baseline entry ID (from 'baseline list')."),
+) -> None:
+    """Remove a baseline entry by ID."""
+    from sqlalchemy.orm import Session
+
+    from sentinel.application.baseline_service import BaselineService
+    from sentinel.storage.baseline_repository import BaselineRepository
+    from sentinel.storage.database import get_engine, init_db
+
+    engine = get_engine()
+    init_db(engine)
+    with Session(engine) as session:
+        svc = BaselineService(BaselineRepository(session))
+        removed = svc.remove(entry_id)
+        if removed:
+            session.commit()
+            console.print(f"[green]Removed baseline entry {entry_id}.[/green]")
+        else:
+            console.print(f"[red]No baseline entry with id={entry_id}.[/red]")
+            raise typer.Exit(1)
 
 
 def _launch_tui() -> None:
