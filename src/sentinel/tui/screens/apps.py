@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Static
+from textual.widget import Widget
+from textual.widgets import DataTable, Static
 
 from sentinel.application.correlation import CorrelatedProcess
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity
 from sentinel.domain.findings import Finding
+from sentinel.tui.widgets.key_bar import KeyBar
 
 _SEV_FLAG: dict[Severity, str] = {
     Severity.CRITICAL: "[bold red]⬛[/bold red]",
@@ -35,18 +36,19 @@ _SEV_ORDER: dict[Severity, int] = {
 _SUSPICIOUS_PATH_FRAGMENTS = ("/tmp/", "/var/tmp/", "/Downloads/", "/Temp/")
 
 
-class AppsScreen(Screen[None]):
-    TITLE = "Apps"
-
+class AppsScreen(Widget):
     DEFAULT_CSS = """
     AppsScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     #detail-panel {
         height: 10;
-        border-top: solid $primary;
+        border-top: solid #00ff9f;
         padding: 1 2;
-        background: $panel;
+        background: #0d1521;
+        color: #a0c8e8;
     }
     """
 
@@ -60,10 +62,20 @@ class AppsScreen(Screen[None]):
         table.add_columns("!", "PID", "Name", "User", "Ports", "Path")
         yield table
         yield Static(
-            "[dim]↑ / ↓  navigate · Enter  inspect · [yellow]▲[/yellow] / [red]●[/red] / [bold red]⬛[/bold red]  flagged[/dim]",
+            "[dim]Select a process to inspect it — finding details, path, ports, and command line[/dim]",
             id="detail-panel",
         )
-        yield Footer()
+        yield KeyBar(
+            [
+                ("↑↓", "Navigate"),
+                ("Enter", "Inspect"),
+                ("s", "Rescan"),
+                ("p", "Pause"),
+                ("1-4", "Tabs"),
+                ("?", "Help"),
+                ("q", "Quit"),
+            ]
+        )
 
     def update_result(self, result: ScanResult) -> None:
         self._correlated = result.correlated

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Static
+from textual.widget import Widget
+from textual.widgets import DataTable, Static
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import ExposureLevel
+from sentinel.tui.widgets.key_bar import KeyBar
 
 _EXPOSURE_MARKUP: dict[ExposureLevel, str] = {
     ExposureLevel.LOOPBACK: "[green]Localhost[/green]",
@@ -20,16 +21,16 @@ _EXPOSURE_FLAG: dict[ExposureLevel, str] = {
 }
 
 
-class NetworkScreen(Screen[None]):
-    TITLE = "Network"
-
+class NetworkScreen(Widget):
     DEFAULT_CSS = """
     NetworkScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     .section-label {
         padding: 0 2;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     """
@@ -51,7 +52,17 @@ class NetworkScreen(Screen[None]):
         conns: DataTable[str] = DataTable(id="connections-table", cursor_type="row")
         conns.add_columns("Process", "Local", "Remote", "State")
         yield conns
-        yield Footer()
+        yield KeyBar(
+            [
+                ("↑↓", "Navigate"),
+                ("Tab", "Next table"),
+                ("s", "Rescan"),
+                ("p", "Pause"),
+                ("1-4", "Tabs"),
+                ("?", "Help"),
+                ("q", "Quit"),
+            ]
+        )
 
     def update_result(self, result: ScanResult) -> None:
         listeners_table = self.query_one("#listeners-table", DataTable)

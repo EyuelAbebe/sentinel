@@ -4,38 +4,51 @@
 
 ---
 
-## Recommended: pipx
+## Install from source (recommended for now)
 
-[pipx](https://pipx.pypa.io) installs Sentinel into an isolated environment and puts `sentinel` on your PATH. It is the easiest option for end users.
-
-Install pipx if you do not have it:
+Sentinel is not yet published to PyPI. Clone the repo and install with [Poetry](https://python-poetry.org).
 
 ```bash
-brew install pipx
-pipx ensurepath
+git clone https://github.com/EyuelAbebe/sentinel.git
+cd sentinel
+pip install poetry          # if you don't have Poetry yet
+poetry install              # installs all runtime + dev dependencies
 ```
 
-Then install Sentinel:
+Run it:
 
 ```bash
-# CLI + interactive TUI (recommended)
-pipx install "sentinel[tui]"
-
-# CLI only (scan, processes, ports, network — no interactive monitor)
-pipx install sentinel
+poetry run sentinel doctor  # verify environment
+poetry run sentinel scan    # one-shot security scan
+poetry run sentinel         # open interactive TUI monitor
+poetry run sentinel serve   # start HTTP API + browser dashboard on :7173
 ```
 
-Verify:
+To avoid typing `poetry run` each time, activate the virtual environment:
 
 ```bash
+source .venv/bin/activate
 sentinel doctor
 ```
 
 ---
 
-## pip into a virtual environment
+## Install from PyPI (once published)
 
-Use this if you want to manage the environment yourself.
+When Sentinel is released to PyPI, you'll be able to install it with [pipx](https://pipx.pypa.io):
+
+```bash
+brew install pipx
+pipx ensurepath
+
+# CLI + interactive TUI (recommended)
+pipx install "sentinel[tui]"
+
+# CLI only (no interactive monitor)
+pipx install sentinel
+```
+
+Or with pip into a virtual environment:
 
 ```bash
 python3 -m venv ~/.venvs/sentinel
@@ -43,63 +56,28 @@ source ~/.venvs/sentinel/bin/activate
 pip install "sentinel[tui]"
 ```
 
-Add the venv's `bin/` to your PATH, or call `sentinel` via its full path:
-
-```bash
-~/.venvs/sentinel/bin/sentinel doctor
-```
-
 ---
 
-## Upgrading
-
-**pipx:**
+## Upgrading (source install)
 
 ```bash
-pipx upgrade sentinel
-```
-
-**pip in a venv:**
-
-```bash
-source ~/.venvs/sentinel/bin/activate
-pip install --upgrade sentinel
-```
-
-After upgrading, confirm the new version:
-
-```bash
+git pull origin main
+poetry install
 sentinel version
-```
-
----
-
-## Uninstalling
-
-**pipx:**
-
-```bash
-pipx uninstall sentinel
-```
-
-**pip in a venv:**
-
-```bash
-rm -rf ~/.venvs/sentinel
 ```
 
 ---
 
 ## Run automatically on login (launchd)
 
-Sentinel ships a launchd agent that starts the local API server (`sentinel serve`) at login and keeps it running in the background.
+Sentinel ships a launchd agent that starts the local API server (`sentinel serve`) at login.
 
-### Quick install (recommended)
+### Quick install
 
-Requires `sentinel[api]` to be installed first:
+Requires the `api` extra:
 
 ```bash
-pip install "sentinel[api]"   # or: pipx inject sentinel "sentinel[api]"
+poetry install --extras api   # or: pip install "sentinel[api]"
 bash packaging/install.sh
 ```
 
@@ -118,7 +96,7 @@ sentinel doctor   # shows "launchd agent: OK"
 
 Logs are written to `~/Library/Logs/sentinel/`.
 
-### Uninstall
+### Uninstall the agent
 
 ```bash
 bash packaging/uninstall.sh
@@ -126,40 +104,28 @@ bash packaging/uninstall.sh
 
 ### Manual plist setup
 
-If you prefer to manage the plist yourself, copy `packaging/com.sentinel.agent.plist`, replace the placeholder tokens (`SENTINEL_BIN`, `SENTINEL_LOG_DIR`, `SENTINEL_USER`) with your actual values, save it to `~/Library/LaunchAgents/com.sentinel.agent.plist`, and load it:
+Copy `packaging/com.sentinel.agent.plist`, replace the placeholder tokens (`SENTINEL_BIN`, `SENTINEL_LOG_DIR`, `SENTINEL_USER`) with your actual values, save it to `~/Library/LaunchAgents/com.sentinel.agent.plist`, and load it:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.sentinel.agent.plist
 ```
 
-### Notes on launchd mode
-
-- The agent runs as your user — no root or elevated privileges required.
-- It starts `sentinel serve` (HTTP API on `127.0.0.1:7173`), not the interactive TUI.
-- SIP restrictions apply: some system process details are partial. Run `sentinel doctor` to see what is visible.
-- Logs rotate automatically when the file exceeds system limits; use `log show` or `Console.app` for structured output.
-
 ---
 
 ## Troubleshooting
 
-**`sentinel: command not found` after pipx install**
+**`sentinel: command not found`**
 
-Run `pipx ensurepath` and open a new terminal. If your shell is zsh, confirm `~/.local/bin` is in your `$PATH`:
-
-```bash
-echo $PATH | tr ':' '\n' | grep local
-```
+Make sure the Poetry virtualenv is active (`source .venv/bin/activate`) or always prefix with `poetry run`.
 
 **`sentinel doctor` reports partial network access**
 
-This is normal under macOS SIP. Sentinel will show your own processes and connections fully; system processes are partially visible. No action needed.
+Normal under macOS SIP. Sentinel shows your own processes and connections fully; system processes are partially visible. No action needed.
 
-**TUI does not open (`ModuleNotFoundError: textual`)**
+**`ModuleNotFoundError: textual`**
 
-You installed the CLI-only variant. Reinstall with the `tui` extra:
+Install the `tui` extra: `poetry install` already includes it for source installs. For pip, reinstall with `pip install "sentinel[tui]"`.
 
-```bash
-pipx uninstall sentinel
-pipx install "sentinel[tui]"
-```
+**`ModuleNotFoundError: fastapi` or `uvicorn`**
+
+Install the `api` extra: `poetry install --extras api` or `pip install "sentinel[api]"`.

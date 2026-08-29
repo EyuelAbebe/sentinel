@@ -5,12 +5,13 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.screen import Screen
-from textual.widgets import Footer, RichLog, Static
+from textual.widget import Widget
+from textual.widgets import RichLog, Static
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity
 from sentinel.domain.findings import Finding
+from sentinel.tui.widgets.key_bar import KeyBar
 from sentinel.tui.widgets.summary_bar import SummaryBar
 
 _SEV_BADGE: dict[Severity, tuple[str, str]] = {
@@ -21,12 +22,12 @@ _SEV_BADGE: dict[Severity, tuple[str, str]] = {
 }
 
 
-class OverviewScreen(Screen[None]):
-    TITLE = "Overview"
-
+class OverviewScreen(Widget):
     DEFAULT_CSS = """
     OverviewScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     #summary {
         height: 7;
@@ -34,29 +35,30 @@ class OverviewScreen(Screen[None]):
     #scan-status {
         height: 1;
         padding: 0 2;
-        background: $panel;
-        color: $text-muted;
+        background: #0d1521;
+        color: #2a6a8a;
     }
     #attention-header {
         padding: 0 2;
         margin-top: 1;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     #attention-area {
         height: 1fr;
         padding: 0 2;
         min-height: 3;
+        background: #080e18;
     }
     #activity-header {
         padding: 0 2;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     #activity-log {
         height: 10;
-        border-top: solid $primary;
-        background: $panel;
+        border-top: solid #00ff9f;
+        background: #0d1521;
     }
     """
 
@@ -78,7 +80,15 @@ class OverviewScreen(Screen[None]):
             "── LIVE ACTIVITY ────────────────────────────────────────", id="activity-header"
         )
         yield RichLog(id="activity-log", highlight=True, markup=True, max_lines=200)
-        yield Footer()
+        yield KeyBar(
+            [
+                ("1-4", "Tabs"),
+                ("s", "Rescan"),
+                ("p", "Pause"),
+                ("?", "Help"),
+                ("q", "Quit"),
+            ]
+        )
 
     def set_scanning(
         self,

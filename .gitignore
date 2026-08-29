@@ -20,3 +20,6 @@ htmlcov/
 sentinel.db
 *.log
 .DS_Store
+.idea/
+*.iml
+extras/

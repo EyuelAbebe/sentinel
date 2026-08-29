@@ -54,12 +54,68 @@ class SentinelApp(App[None]):
     SUB_TITLE = "Local Security Monitor  ·  Press ? for help"
 
     CSS = """
+    /* ── global neon-hacking palette ──────────────────────────── */
+    Header {
+        background: #080e18;
+        color: #00ff9f;
+        border-bottom: solid #00ff9f;
+    }
     TabbedContent {
         height: 1fr;
+        background: #080e18;
+    }
+    TabbedContent ContentSwitcher {
+        background: #080e18;
+    }
+    TabPane {
+        background: #080e18;
+        padding: 0;
+    }
+    Tabs {
+        background: #0d1521;
+        border-bottom: solid #00ff9f;
+    }
+    Tab {
+        background: #0d1521;
+        color: #2a4a6a;
     }
     Tab.-active {
+        background: #080e18;
+        color: #00ff9f;
         text-style: bold;
-        color: $success;
+    }
+    Tab:hover {
+        color: #00e5ff;
+    }
+    DataTable {
+        background: #080e18;
+        color: #a0c8e8;
+    }
+    DataTable > .datatable--header {
+        background: #0d1521;
+        color: #00e5ff;
+        text-style: bold;
+    }
+    DataTable > .datatable--cursor {
+        background: #0d3050;
+        color: #00ff9f;
+    }
+    DataTable > .datatable--hover {
+        background: #0a1e30;
+    }
+    RichLog {
+        background: #080e18;
+        color: #a0c8e8;
+    }
+    VerticalScroll {
+        background: #080e18;
+    }
+    Static {
+        color: #a0c8e8;
+    }
+    Footer {
+        background: #0d1521;
+        color: #2a4a6a;
     }
     """
 
