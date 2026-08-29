@@ -102,6 +102,20 @@ def doctor() -> None:
     osq = shutil.which("osqueryi") or shutil.which("osquery")
     _add_row(table, "osquery (optional)", osq is not None, osq or "not found")
 
+    # yara (optional)
+    try:
+        import importlib.metadata as _ym
+
+        yara_ver = _ym.version("yara-python")
+        _add_row(table, "yara-python (optional)", True, yara_ver)
+    except Exception:
+        _add_row(
+            table,
+            "yara-python (optional)",
+            False,
+            "not installed — deep scan uses rules without YARA",
+        )
+
     # platform
     _add_row(table, "Platform", True, platform.platform())
 
@@ -140,9 +154,53 @@ def scan_quick(
 
 
 @scan_app.command("deep")
-def scan_deep() -> None:
-    """Run a deep security scan (not yet implemented)."""
-    console.print("[yellow]Deep scan not yet available.[/yellow]")
+def scan_deep(
+    output_json: bool = typer.Option(False, "--json", help="Machine-readable JSON output."),
+) -> None:
+    """Run a deep security scan (hash integrity + YARA)."""
+    from sentinel.application.deep_scan_service import DeepScanService
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
+    from sentinel.storage.database import get_engine, init_db
+
+    engine = get_engine()
+    init_db(engine)
+    svc = DeepScanService(
+        process_collector=PsutilProcessCollector(),
+        network_collector=PsutilNetworkCollector(),
+        engine=engine,
+    )
+    result = asyncio.run(svc.run())
+
+    if output_json:
+        import json
+
+        data = {
+            "process_count": result.quick.process_count,
+            "listener_count": result.quick.listener_count,
+            "connection_count": result.quick.connection_count,
+            "finding_count": result.finding_count,
+            "errors": result.errors,
+        }
+        print(json.dumps(data))
+    else:
+        from sentinel.cli.renderers.rich_renderer import render_scan_result
+
+        render_scan_result(result.quick)
+        if result.hash_findings:
+            console.print(
+                f"\n[bold yellow]Hash integrity findings: {len(result.hash_findings)}[/bold yellow]"
+            )
+            for f in result.hash_findings:
+                console.print(f"  [red]●[/red] {f.subject}")
+        if result.yara_findings:
+            console.print(f"\n[bold red]YARA matches: {len(result.yara_findings)}[/bold red]")
+            for f in result.yara_findings:
+                for r in f.reasons:
+                    console.print(f"  [red]![/red] {f.subject}: {r.description}")
+        if result.errors:
+            for err in result.errors:
+                console.print(f"[yellow]⚠  {err}[/yellow]")
 
 
 def _run_scan(output_json: bool = False) -> None:

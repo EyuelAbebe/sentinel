@@ -66,3 +66,21 @@ class BaselineEntry(Base):
 
     def __repr__(self) -> str:
         return f"BaselineEntry(id={self.id}, type={self.subject_type}, subject={self.subject!r})"
+
+
+class ExecutableHashRecord(Base):
+    """Cached SHA-256 hash for a process executable — used for integrity change detection."""
+
+    __tablename__ = "executable_hashes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    path: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    sha256: Mapped[str] = mapped_column(String, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mtime: Mapped[float] = mapped_column(Integer, nullable=False, default=0)
+    last_seen: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+    def __repr__(self) -> str:
+        return f"ExecutableHashRecord(path={self.path!r}, sha256={self.sha256[:8]}...)"
