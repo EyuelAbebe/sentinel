@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sentinel"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local security and privacy monitoring for macOS — processes, ports, and network connections in one view"
 authors = ["Eyuel Abebe <eyueld@gmail.com>"]
 readme = "README.md"
