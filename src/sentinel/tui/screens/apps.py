@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from textual.app import ComposeResult
@@ -43,6 +44,9 @@ class AppsScreen(Widget):
         height: 1fr;
         background: #080e18;
     }
+    #process-table {
+        height: 1fr;
+    }
     #detail-panel {
         height: 10;
         border-top: solid #00ff9f;
@@ -62,7 +66,7 @@ class AppsScreen(Widget):
         table.add_columns("!", "PID", "Name", "User", "Ports", "Path")
         yield table
         yield Static(
-            "[dim]Select a process to inspect it — finding details, path, ports, and command line[/dim]",
+            "[dim]↑ ↓  move cursor  ·  Enter or any arrow  to see process details below[/dim]",
             id="detail-panel",
         )
         yield KeyBar(
@@ -77,11 +81,14 @@ class AppsScreen(Widget):
             ]
         )
 
+    def on_show(self) -> None:
+        with contextlib.suppress(Exception):
+            self.query_one("#process-table", DataTable).focus()
+
     def update_result(self, result: ScanResult) -> None:
         self._correlated = result.correlated
         self._findings = result.findings
 
-        # Map process name → worst finding
         flagged: dict[str, Finding] = {}
         for f in result.findings:
             existing = flagged.get(f.subject)
@@ -116,23 +123,19 @@ class AppsScreen(Widget):
                 key=identity.instance_id,
             )
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        row_key = event.row_key.value
-        if not row_key:
+    def _render_detail(self, row_key_value: str | None) -> None:
+        if not row_key_value:
             return
-        cp = next((c for c in self._correlated if c.instance_id == row_key), None)
+        cp = next((c for c in self._correlated if c.instance_id == row_key_value), None)
         if not cp:
             return
         identity = cp.observation.identity
-
-        # Find associated findings (by process name)
         proc_findings = [f for f in self._findings if f.subject == identity.name]
 
         lines: list[str] = [
             f"[bold]{identity.name}[/bold]  [dim]PID {identity.pid}[/dim]",
             "",
         ]
-
         if proc_findings:
             for finding in proc_findings:
                 color = _SEV_COLOR.get(finding.severity, "red")
@@ -154,4 +157,12 @@ class AppsScreen(Widget):
             cmd = " ".join(identity.command_line)[:120]
             lines.append(f"  [dim]Cmd[/dim]     {cmd}")
 
-        self.query_one("#detail-panel", Static).update("\n".join(lines))
+        with contextlib.suppress(Exception):
+            self.query_one("#detail-panel", Static).update("\n".join(lines))
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.row_key:
+            self._render_detail(event.row_key.value)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        self._render_detail(event.row_key.value)

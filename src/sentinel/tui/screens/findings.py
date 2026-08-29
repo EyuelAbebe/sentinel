@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from textual.app import ComposeResult
@@ -33,6 +34,9 @@ class FindingsScreen(Widget):
         height: 1fr;
         background: #080e18;
     }
+    #findings-table {
+        height: 1fr;
+    }
     #finding-detail {
         height: 12;
         border-top: solid #00ff9f;
@@ -51,7 +55,7 @@ class FindingsScreen(Widget):
         table.add_columns("Sev", "Title", "Subject", "Signals")
         yield table
         yield Static(
-            "[dim]Select a finding to see the full explanation, signals, and affected subject[/dim]",
+            "[dim]↑ ↓  move cursor  ·  arrow keys show finding details below[/dim]",
             id="finding-detail",
         )
         yield KeyBar(
@@ -66,6 +70,10 @@ class FindingsScreen(Widget):
             ]
         )
 
+    def on_show(self) -> None:
+        with contextlib.suppress(Exception):
+            self.query_one("#findings-table", DataTable).focus()
+
     def update_result(self, result: ScanResult) -> None:
         self._findings = result.findings
         table = self.query_one("#findings-table", DataTable)
@@ -79,11 +87,12 @@ class FindingsScreen(Widget):
                 "",
                 key="none",
             )
-            self.query_one("#finding-detail", Static).update(
-                f"[green]✓  No security issues detected.[/green]\n\n"
-                f"[dim]{result.process_count} processes and {result.listener_count} open ports"
-                f" are within normal parameters.[/dim]"
-            )
+            with contextlib.suppress(Exception):
+                self.query_one("#finding-detail", Static).update(
+                    f"[green]✓  No security issues detected.[/green]\n\n"
+                    f"[dim]{result.process_count} processes and {result.listener_count} open ports"
+                    f" are within normal parameters.[/dim]"
+                )
             return
 
         for finding in result.findings:
@@ -93,11 +102,10 @@ class FindingsScreen(Widget):
             signals = ", ".join(r.signal for r in finding.reasons)
             table.add_row(sev_markup, finding.title, finding.subject, signals, key=finding.id)
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        row_key = event.row_key.value
-        if not row_key or row_key == "none":
+    def _render_detail(self, row_key_value: str | None) -> None:
+        if not row_key_value or row_key_value == "none":
             return
-        finding = next((f for f in self._findings if f.id == row_key), None)
+        finding = next((f for f in self._findings if f.id == row_key_value), None)
         if not finding:
             return
         color = _SEV_COLOR.get(finding.severity, "white")
@@ -113,4 +121,12 @@ class FindingsScreen(Widget):
             lines.append(f"  [bold]{reason.signal}[/bold]")
             lines.append(f"  [dim]{reason.description}[/dim]")
             lines.append("")
-        self.query_one("#finding-detail", Static).update("\n".join(lines))
+        with contextlib.suppress(Exception):
+            self.query_one("#finding-detail", Static).update("\n".join(lines))
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.row_key:
+            self._render_detail(event.row_key.value)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        self._render_detail(event.row_key.value)

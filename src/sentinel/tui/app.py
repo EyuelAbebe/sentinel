@@ -88,6 +88,7 @@ class SentinelApp(App[None]):
         color: #00e5ff;
     }
     DataTable {
+        height: 1fr;
         background: #080e18;
         color: #a0c8e8;
     }
