@@ -9,14 +9,71 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Planned
-- Phase 4b: `LiveMonitorService` — poll, diff, persist events, emit via EventBus
-- Phase 4c: TUI live event feed integration
-- Phase 5: Identity and classification engine (domain → org → category)
-- Phase 6: Baselines and explainable findings
-- Phase 7: Deep scan with YARA-X and executable hash caching
-- Phase 8: Browser privacy extension (Chrome / Firefox)
-- Phase 9: Standalone GUI and local HTTP/WebSocket API
+---
+
+## [0.3.0] — 2026-08-29
+
+### Added
+
+**Phase 4b — Live Monitor Service**
+- `LiveMonitorService` — async background polling loop: collect → diff → persist events → emit via `EventBus`
+- Optional SQLite persistence: pass `engine` to `LiveMonitorService` to store events and findings across restarts
+- 9 unit tests covering lifecycle (start/stop/double-start), event emission, graceful degradation, and persistence
+
+**Phase 4c — TUI Live Integration**
+- TUI (`SentinelApp`) now creates and owns a `LiveMonitorService` with shared `EventBus`
+- `on_mount()` starts the monitor; `on_unmount()` stops it cleanly
+- Domain events streamed into the Overview screen's activity log via Textual's message-passing API
+- Each event type has a labelled, colour-coded prefix (`[PROC]`, `[PORT]`, `[CONN]`, `[SITE]`)
+
+**Phase 5 — Domain Classification Engine**
+- `src/sentinel/adapters/tracker_lists.py` — 100+ entry offline domain database covering analytics, advertising, tracking, CDN, cloud API, and social categories
+- `ClassificationService` — classifies any domain via subdomain hierarchy walking; returns `ClassificationEvidence` with source and confidence
+- `known_tracker_connection` signal in `FindingEngine` — raises finding for connections to TRACKING or ADVERTISING domains
+- `SITE_VISITED` and `THIRD_PARTY_REQUEST` events emitted by the classification layer
+
+**Phase 6 — Baselines and Explainable Findings**
+- `BaselineEntry` ORM model (unique by `subject_type` + `subject`)
+- `BaselineRepository` — upsert, delete, query, find-by-subject
+- `BaselineService` — `is_process_expected()`, `is_port_expected()`, `is_domain_expected()`, `add_*()`, `remove()`, `list_all()`
+- `FindingEngine` respects baselines: baselined processes marked `EXPECTED`, baselined ports/domains suppress signals
+- `sentinel baseline list / add / remove` CLI commands
+
+**Phase 7 — Deep Scan with Hash Integrity and YARA**
+- `HashCacheService` — SHA-256 with mtime-based cache invalidation in SQLite (`ExecutableHashRecord`)
+- `YaraScanner` — optional yara-python adapter; graceful no-op if not installed; bundles 4 YARA rules: `SuspiciousTempExecutable`, `EicarTest`, `EncodedPayload`, `ReverseShell`
+- `DeepScanService` — QuickScan + hash integrity check + YARA scan; returns `DeepScanResult`
+- `sentinel scan deep` — runs deep scan with Rich output; hash and YARA findings displayed separately
+- `sentinel doctor` — reports yara-python installation status
+
+**Phase 8 — Browser Privacy Extension**
+- Chrome MV3 + Firefox MV2 extension in `browser-extension/`
+- Service worker (`background.js`) classifies every navigation via `GET /classify` on the local API
+- Popup shows current site category badge, classification detail, and recent domain list
+- Dark-themed UI (`popup.css`) with category-coloured badges (analytics, advertising, CDN, etc.)
+- `README.md` covers load-unpacked instructions for both browsers
+
+**Phase 9 — Local HTTP/WebSocket API**
+- `src/sentinel/api/app.py` — FastAPI app: `GET /health`, `GET /classify`, `GET /scan`, `GET /findings`, `GET /baseline`, `WS /events`
+- WebSocket `/events` streams live domain events from `EventBus` to any connected client
+- CORS middleware allows all origins (localhost only by default)
+- `sentinel serve [--host] [--port] [--reload]` CLI command
+- `fastapi` and `uvicorn[standard]` added as optional `[api]` extras
+- 7 unit tests via `FastAPI TestClient` (guarded with `pytest.importorskip`)
+
+**Phase 10 — Zeek and Suricata Adapters**
+- `ZeekAdapter` — tails Zeek `conn.log` TSV; emits `CONNECTION_OPENED` events; handles log rotation
+- `SuricataAdapter` — tails Suricata `eve.json` NDJSON; emits `CONNECTION_OPENED` (flow) and `FINDING_CREATED` (alert) events; handles rotation
+- Both expose `.available` and `.read_file()` for batch parsing and testing
+- 28 unit tests (14 per adapter) covering parsing, edge cases, missing files, and availability
+- `sentinel doctor` reports Zeek/Suricata binary presence and default log path existence
+
+**Phase 11 — macOS Packaging and launchd Service**
+- `packaging/com.sentinel.agent.plist` — launchd plist template; runs `sentinel serve` as a persistent user-level agent; auto-restarts on crash with 10 s throttle
+- `packaging/install.sh` — resolves sentinel binary, substitutes plist placeholders, loads via `launchctl`, prints log path and health URL
+- `packaging/uninstall.sh` — unloads running agent and removes plist
+- `docs/installation.md` updated with one-command install instructions
+- `sentinel doctor` checks whether `com.sentinel.agent` is loaded via `launchctl list`
 
 ---
 
@@ -114,6 +171,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - macOS SIP prevents `psutil.net_connections()` without elevated privileges; partial data for system processes
 - Very short-lived processes (< poll interval) may not be detected
 
-[Unreleased]: https://github.com/EyuelAbebe/sentinel/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/EyuelAbebe/sentinel/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/EyuelAbebe/sentinel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/EyuelAbebe/sentinel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/EyuelAbebe/sentinel/releases/tag/v0.1.0
