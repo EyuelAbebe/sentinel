@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(poetry run pytest*)",
+      "Bash(poetry run ruff*)",
+      "Bash(poetry run mypy*)",
+      "Bash(poetry install*)",
+      "Bash(poetry add*)",
+      "Bash(poetry version*)",
+      "Bash(poetry show*)",
+      "Bash(poetry run sentinel*)",
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make fmt)",
+      "Bash(make typecheck)",
+      "Bash(make bump-*)",
+      "Bash(make install)",
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(find . -name*)",
+      "Bash(ls*)"
+    ]
+  }
+}
