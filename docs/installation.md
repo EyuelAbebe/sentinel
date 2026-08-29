@@ -92,73 +92,52 @@ rm -rf ~/.venvs/sentinel
 
 ## Run automatically on login (launchd)
 
-You can configure Sentinel to run a continuous scan at login using a macOS launchd agent.
+Sentinel ships a launchd agent that starts the local API server (`sentinel serve`) at login and keeps it running in the background.
 
-### 1. Find your sentinel binary
+### Quick install (recommended)
 
-```bash
-which sentinel
-```
-
-Note the path — it will be something like `/Users/you/.local/bin/sentinel` (pipx) or `/Users/you/.venvs/sentinel/bin/sentinel` (venv).
-
-### 2. Create the launchd plist
-
-Create `~/Library/LaunchAgents/io.github.eyuelabebe.sentinel.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>io.github.eyuelabebe.sentinel</string>
-
-  <key>ProgramArguments</key>
-  <array>
-    <string>/Users/you/.local/bin/sentinel</string>
-    <string>scan</string>
-    <string>--json</string>
-  </array>
-
-  <key>StandardOutPath</key>
-  <string>/tmp/sentinel.log</string>
-
-  <key>StandardErrorPath</key>
-  <string>/tmp/sentinel-error.log</string>
-
-  <key>StartInterval</key>
-  <integer>300</integer>
-
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-```
-
-Replace `/Users/you/.local/bin/sentinel` with the path from step 1.
-
-`StartInterval` is in seconds — `300` runs a scan every 5 minutes.
-
-### 3. Load the agent
+Requires `sentinel[api]` to be installed first:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/io.github.eyuelabebe.sentinel.plist
+pip install "sentinel[api]"   # or: pipx inject sentinel "sentinel[api]"
+bash packaging/install.sh
 ```
 
-To stop it:
+The script:
+1. Finds the `sentinel` binary on your PATH
+2. Writes a configured plist to `~/Library/LaunchAgents/com.sentinel.agent.plist`
+3. Loads the agent via `launchctl`
+4. Prints the log path and health URL
+
+Verify it is running:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/io.github.eyuelabebe.sentinel.plist
+curl http://127.0.0.1:7173/health
+sentinel doctor   # shows "launchd agent: OK"
+```
+
+Logs are written to `~/Library/Logs/sentinel/`.
+
+### Uninstall
+
+```bash
+bash packaging/uninstall.sh
+```
+
+### Manual plist setup
+
+If you prefer to manage the plist yourself, copy `packaging/com.sentinel.agent.plist`, replace the placeholder tokens (`SENTINEL_BIN`, `SENTINEL_LOG_DIR`, `SENTINEL_USER`) with your actual values, save it to `~/Library/LaunchAgents/com.sentinel.agent.plist`, and load it:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.sentinel.agent.plist
 ```
 
 ### Notes on launchd mode
 
-- Output goes to `/tmp/sentinel.log`. Rotate or redirect this if you want persistent storage.
-- The scan runs as your user — no elevated privileges.
-- SIP restrictions apply: some system process details will be partial. Run `sentinel doctor` to see what is visible.
-- The interactive TUI (`sentinel` with no arguments) is not suitable for launchd — use `sentinel scan --json` or `sentinel scan` for unattended runs.
+- The agent runs as your user — no root or elevated privileges required.
+- It starts `sentinel serve` (HTTP API on `127.0.0.1:7173`), not the interactive TUI.
+- SIP restrictions apply: some system process details are partial. Run `sentinel doctor` to see what is visible.
+- Logs rotate automatically when the file exceeds system limits; use `log show` or `Console.app` for structured output.
 
 ---
 

@@ -160,6 +160,26 @@ def doctor() -> None:
         suricata_detail,
     )
 
+    # launchd service (macOS only)
+    import subprocess
+
+    launchd_label = "com.sentinel.agent"
+    try:
+        result = subprocess.run(
+            ["launchctl", "list", launchd_label],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        launchd_loaded = result.returncode == 0
+        launchd_detail = (
+            "loaded" if launchd_loaded else "not loaded — run: bash packaging/install.sh"
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        launchd_loaded = False
+        launchd_detail = "launchctl not available"
+    _add_row(table, "launchd agent (optional)", launchd_loaded, launchd_detail)
+
     # platform
     _add_row(table, "Platform", True, platform.platform())
 
