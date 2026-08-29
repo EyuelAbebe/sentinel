@@ -3,6 +3,7 @@
 Start with: sentinel serve [--port 7173]
 
 Endpoints:
+  GET  /                     — browser dashboard (live UI)
   GET  /health               — liveness probe
   GET  /classify?domain=...  — classify a domain name
   GET  /scan                 — run a quick scan and return results
@@ -15,10 +16,12 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from sentinel.application.classification_service import ClassificationService
 from sentinel.application.event_bus import EventBus
@@ -29,6 +32,8 @@ from sentinel.domain.events import Event as DomainEvent
 from sentinel.log import get_logger
 
 logger = get_logger("api")
+
+_DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8")
 
 # ── application state ─────────────────────────────────────────────────────────
 
@@ -80,6 +85,11 @@ app.add_middleware(
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard() -> HTMLResponse:
+    return HTMLResponse(content=_DASHBOARD_HTML)
 
 
 @app.get("/health")
