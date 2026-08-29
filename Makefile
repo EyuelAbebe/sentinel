@@ -1,7 +1,14 @@
 .PHONY: help install lint typecheck test run scan smoke fmt clean bump-patch bump-minor bump-major
 
-# Marker file tracks last successful install. Deleted automatically when .venv is cleaned.
-INSTALLED_MARKER := .venv/.installed
+# Always use the venv directly — avoids `poetry run` triggering broken-venv detection on every call.
+PYTHON  := .venv/bin/python
+SENTINEL := .venv/bin/sentinel
+PYTEST  := .venv/bin/pytest
+RUFF    := .venv/bin/ruff
+MYPY    := .venv/bin/mypy
+
+export POETRY_VIRTUALENVS_IN_PROJECT := true
+export POETRY_VIRTUALENVS_CREATE     := true
 
 help:
 	@echo ""
@@ -23,49 +30,43 @@ help:
 	@echo "    make bump-patch / bump-minor / bump-major"
 	@echo ""
 
-# Guard: runs install if marker is missing OR sentinel is not importable in the venv.
-_ensure-installed:
-	@if [ ! -f $(INSTALLED_MARKER) ] || ! poetry run python -c "import sentinel" 2>/dev/null; then \
-		$(MAKE) --no-print-directory _do-install; \
-	fi
-
-_do-install:
-	poetry config virtualenvs.in-project true
+# Build target: recreates .venv and installs when pyproject.toml or poetry.lock change.
+$(PYTHON): pyproject.toml poetry.lock
 	poetry env remove --all 2>/dev/null || true
 	poetry install --all-extras
-	@touch $(INSTALLED_MARKER)
+	@touch $(PYTHON)
 
-install: _do-install
+install: $(PYTHON)
 
-run: _ensure-installed
-	poetry run sentinel
+run: $(PYTHON)
+	$(SENTINEL)
 
-scan: _ensure-installed
-	poetry run sentinel scan
+scan: $(PYTHON)
+	$(SENTINEL) scan
 
-smoke: _ensure-installed
+smoke: $(PYTHON)
 	@echo "==> lint"
-	poetry run ruff check src/ tests/
-	poetry run ruff format --check src/ tests/
+	$(RUFF) check src/ tests/
+	$(RUFF) format --check src/ tests/
 	@echo "==> tests"
-	poetry run pytest tests/ -q
+	$(PYTEST) tests/ -q
 	@echo "==> sentinel scan"
-	poetry run sentinel scan
+	$(SENTINEL) scan
 	@echo "==> all checks passed"
 
 lint:
-	poetry run ruff check src/ tests/
-	poetry run ruff format --check src/ tests/
+	$(RUFF) check src/ tests/
+	$(RUFF) format --check src/ tests/
 
 fmt:
-	poetry run ruff format src/ tests/
-	poetry run ruff check --fix src/ tests/
+	$(RUFF) format src/ tests/
+	$(RUFF) check --fix src/ tests/
 
 typecheck:
-	poetry run mypy src/
+	$(MYPY) src/
 
 test:
-	poetry run pytest tests/ -v
+	$(PYTEST) tests/ -v
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true

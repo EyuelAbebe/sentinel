@@ -102,6 +102,21 @@ def doctor() -> None:
     osq = shutil.which("osqueryi") or shutil.which("osquery")
     _add_row(table, "osquery (optional)", osq is not None, osq or "not found")
 
+    # fastapi / uvicorn (optional)
+    try:
+        import importlib.metadata as _fm
+
+        fa_ver = _fm.version("fastapi")
+        uv_ver = _fm.version("uvicorn")
+        _add_row(table, "fastapi+uvicorn (optional)", True, f"{fa_ver} / {uv_ver}")
+    except Exception:
+        _add_row(
+            table,
+            "fastapi+uvicorn (optional)",
+            False,
+            "not installed — run: pip install 'sentinel[api]'",
+        )
+
     # yara (optional)
     try:
         import importlib.metadata as _ym
@@ -274,6 +289,32 @@ def network() -> None:
 def watch() -> None:
     """Launch the interactive TUI monitor."""
     _launch_tui()
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind address."),
+    port: int = typer.Option(7173, "--port", "-p", help="Port number."),
+    reload: bool = typer.Option(False, "--reload", help="Enable hot-reload (dev only)."),
+) -> None:
+    """Start the local HTTP/WebSocket API server."""
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[bold red]uvicorn is required for the API server.[/bold red]\n"
+            "Install it with:  [bold]pip install 'sentinel[api]'[/bold]"
+        )
+        raise typer.Exit(1) from None
+
+    console.print(f"[green]Sentinel API starting on http://{host}:{port}[/green]")
+    uvicorn.run(
+        "sentinel.api.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="warning",
+    )
 
 
 # ── baseline subcommands ───────────────────────────────────────────────────
