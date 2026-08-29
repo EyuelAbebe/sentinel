@@ -10,11 +10,18 @@ from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity
 from sentinel.domain.findings import Finding
 
-_SEV_COLOR = {
+_SEV_COLOR: dict[Severity, str] = {
     Severity.LOW: "yellow",
     Severity.MEDIUM: "dark_orange",
     Severity.HIGH: "red",
     Severity.CRITICAL: "bold red",
+}
+
+_SEV_ICON: dict[Severity, str] = {
+    Severity.LOW: "▲",
+    Severity.MEDIUM: "◆",
+    Severity.HIGH: "●",
+    Severity.CRITICAL: "⬛",
 }
 
 
@@ -29,7 +36,7 @@ class FindingsScreen(Screen[None]):
         height: 12;
         border-top: solid $primary;
         padding: 1 2;
-        color: $text-muted;
+        background: $panel;
     }
     """
 
@@ -39,23 +46,40 @@ class FindingsScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         table: DataTable[str] = DataTable(id="findings-table", cursor_type="row")
-        table.add_columns("Severity", "Title", "Signals")
+        table.add_columns("Sev", "Title", "Subject", "Signals")
         yield table
-        yield Static("[dim]No finding selected[/dim]", id="finding-detail")
+        yield Static(
+            "[dim]↑ / ↓  navigate · Enter  inspect · no finding selected[/dim]",
+            id="finding-detail",
+        )
         yield Footer()
 
     def update_result(self, result: ScanResult) -> None:
         self._findings = result.findings
         table = self.query_one("#findings-table", DataTable)
         table.clear()
+
         if not result.findings:
-            table.add_row("—", "No findings", "", key="none")
+            table.add_row(
+                "[green]✓[/green]",
+                "[green]All clear — no findings[/green]",
+                "",
+                "",
+                key="none",
+            )
+            self.query_one("#finding-detail", Static).update(
+                f"[green]✓  No security issues detected.[/green]\n\n"
+                f"[dim]{result.process_count} processes and {result.listener_count} open ports"
+                f" are within normal parameters.[/dim]"
+            )
             return
+
         for finding in result.findings:
             color = _SEV_COLOR.get(finding.severity, "white")
-            sev_markup = f"[{color}]{finding.severity.upper()}[/{color}]"
+            icon = _SEV_ICON.get(finding.severity, "!")
+            sev_markup = f"[{color}]{icon}[/{color}]"
             signals = ", ".join(r.signal for r in finding.reasons)
-            table.add_row(sev_markup, finding.title, signals, key=finding.id)
+            table.add_row(sev_markup, finding.title, finding.subject, signals, key=finding.id)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         row_key = event.row_key.value
@@ -65,12 +89,16 @@ class FindingsScreen(Screen[None]):
         if not finding:
             return
         color = _SEV_COLOR.get(finding.severity, "white")
+        icon = _SEV_ICON.get(finding.severity, "!")
         lines = [
-            f"[bold]{finding.title}[/bold]  [{color}]{finding.severity.upper()}[/{color}]",
+            f"[{color}]{icon}[/{color}] [{color}]{finding.severity.upper()}[/{color}]"
+            f"  [bold]{finding.title}[/bold]",
+            f"[dim]Subject:[/dim] {finding.subject}",
             "",
+            "[dim]Why this was flagged:[/dim]",
         ]
         for reason in finding.reasons:
             lines.append(f"  [bold]{reason.signal}[/bold]")
-            lines.append(f"  {reason.description}")
+            lines.append(f"  [dim]{reason.description}[/dim]")
             lines.append("")
         self.query_one("#finding-detail", Static).update("\n".join(lines))

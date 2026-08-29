@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -31,34 +33,52 @@ _SEVERITY_ICON: dict[Severity, str] = {
 _EXPOSURE_LABEL: dict[ExposureLevel, str] = {
     ExposureLevel.LOOPBACK: "[green]Localhost only[/green]",
     ExposureLevel.LOCAL_NETWORK: "[yellow]Local network[/yellow]",
-    ExposureLevel.ALL_INTERFACES: "[red]All interfaces[/red]",
+    ExposureLevel.ALL_INTERFACES: "[bold red]⚠  All interfaces[/bold red]",
 }
 
 
-def render_scan_result(result: ScanResult) -> None:
+def render_scan_result(result: ScanResult, duration: float | None = None) -> None:
+    _render_header(duration)
     _render_summary(result)
     if result.findings:
         console.print(Rule(style="dim"))
         _render_attention(result.findings)
     if result.errors:
         _render_errors(result.errors)
+    _render_tip()
+
+
+def _render_header(duration: float | None) -> None:
+    ts = datetime.now(UTC).strftime("%H:%M:%S")
+    dur_str = f"  ·  {duration:.1f}s" if duration is not None else ""
+    console.print()
+    console.print(
+        Rule(
+            f"[bold cyan]Sentinel[/bold cyan]  [dim]Quick Scan · {ts}{dur_str}[/dim]",
+            style="cyan",
+        )
+    )
 
 
 def _render_summary(result: ScanResult) -> None:
-    attention_style = "bold red" if result.attention_count > 0 else "green"
+    if result.attention_count > 0:
+        attn_markup = f"[bold red]{result.attention_count} ⚠[/bold red]"
+        attn_style = "bold red"
+    else:
+        attn_markup = f"[green]{result.attention_count} ✓[/green]"
+        attn_style = "green"
+
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
     table.add_column("Processes", style="cyan", justify="right")
-    table.add_column("Listening ports", style="cyan", justify="right")
+    table.add_column("Ports", style="cyan", justify="right")
     table.add_column("Connections", style="cyan", justify="right")
-    table.add_column("Attention", style=attention_style, justify="right")
+    table.add_column("Attention", style=attn_style, justify="right")
     table.add_row(
         str(result.process_count),
         str(result.listener_count),
         str(result.connection_count),
-        str(result.attention_count),
+        attn_markup,
     )
-    console.print()
-    console.print(Rule("[bold]Security Scan[/bold]", style="dim"))
     console.print()
     console.print(table)
 
@@ -86,6 +106,17 @@ def _render_errors(errors: list[str]) -> None:
     console.print()
     for err in errors:
         console.print(f"[yellow]⚠  {err}[/yellow]")
+
+
+def _render_tip() -> None:
+    console.print()
+    console.print(
+        Rule(
+            "[dim]Run [bold]sentinel watch[/bold] for live interactive monitoring[/dim]",
+            style="dim",
+        )
+    )
+    console.print()
 
 
 def render_processes_table(correlated: list[CorrelatedProcess]) -> None:
@@ -128,6 +159,7 @@ def render_ports_table(correlated: list[CorrelatedProcess]) -> None:
         show_header=True,
         header_style="bold cyan",
     )
+    table.add_column("!", width=2)
     table.add_column("Port", justify="right", style="bold cyan")
     table.add_column("Protocol")
     table.add_column("Process")
@@ -137,7 +169,15 @@ def render_ports_table(correlated: list[CorrelatedProcess]) -> None:
     for cp in correlated:
         for listener in cp.listeners:
             exposure_label = _EXPOSURE_LABEL.get(listener.exposure, listener.exposure)
+            flag = (
+                "[bold red]⚠[/bold red]"
+                if listener.exposure == ExposureLevel.ALL_INTERFACES
+                else "[yellow]◆[/yellow]"
+                if listener.exposure == ExposureLevel.LOCAL_NETWORK
+                else ""
+            )
             table.add_row(
+                flag,
                 str(listener.local_endpoint.port),
                 listener.local_endpoint.protocol.upper(),
                 cp.name,
