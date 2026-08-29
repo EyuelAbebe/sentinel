@@ -82,7 +82,7 @@ class SearchScreen(Widget):
                 ("↑↓", "Navigate"),
                 ("Tab", "Table"),
                 ("s", "Rescan"),
-                ("1-5", "Tabs"),
+                ("1-7", "Tabs"),
                 ("?", "Help"),
                 ("q", "Quit"),
             ]

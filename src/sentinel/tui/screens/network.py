@@ -88,7 +88,7 @@ class NetworkScreen(Widget):
                 ("Tab", "Switch table"),
                 ("s", "Rescan"),
                 ("p", "Pause"),
-                ("1-4", "Tabs"),
+                ("1-7", "Tabs"),
                 ("?", "Help"),
                 ("q", "Quit"),
             ]

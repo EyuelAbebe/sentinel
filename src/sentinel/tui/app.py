@@ -23,7 +23,9 @@ from sentinel.tui.screens.findings import FindingsScreen
 from sentinel.tui.screens.help import HelpScreen
 from sentinel.tui.screens.network import NetworkScreen
 from sentinel.tui.screens.overview import OverviewScreen
+from sentinel.tui.screens.resources import ResourcesScreen
 from sentinel.tui.screens.search import SearchScreen
+from sentinel.tui.screens.users import UsersScreen
 
 _EVENT_LABEL: dict[EventType, tuple[str, str]] = {
     EventType.PROCESS_STARTED: ("green", "⬆ PROC"),
@@ -131,6 +133,8 @@ class SentinelApp(App[None]):
         Binding("3", "tab_network", "Network", show=False),
         Binding("4", "tab_findings", "Findings", show=False),
         Binding("5", "tab_search", "Search", show=False),
+        Binding("6", "tab_users", "Users", show=False),
+        Binding("7", "tab_resources", "Resources", show=False),
         Binding("slash", "focus_search", "Search", key_display="/", show=True),
     ]
 
@@ -169,6 +173,10 @@ class SentinelApp(App[None]):
                 yield FindingsScreen(id="findings")
             with TabPane("5 Search", id="tab-search"):
                 yield SearchScreen(id="search")
+            with TabPane("6 Users", id="tab-users"):
+                yield UsersScreen(id="users")
+            with TabPane("7 Resources", id="tab-resources"):
+                yield ResourcesScreen(id="resources")
 
     async def on_mount(self) -> None:
         self._bus.subscribe_all(self._on_domain_event)
@@ -255,6 +263,8 @@ class SentinelApp(App[None]):
             self.query_one("#findings", FindingsScreen).update_result(result)
         with contextlib.suppress(Exception):
             self.query_one("#search", SearchScreen).update_result(result)
+        with contextlib.suppress(Exception):
+            self.query_one("#users", UsersScreen).update_result(result)
 
         # Log findings into the activity stream
         if result.findings:
@@ -305,3 +315,9 @@ class SentinelApp(App[None]):
         self.query_one("#tabs", TabbedContent).active = "tab-search"
         with contextlib.suppress(Exception):
             self.query_one("#search", SearchScreen).focus_input()
+
+    def action_tab_users(self) -> None:
+        self.query_one("#tabs", TabbedContent).active = "tab-users"
+
+    def action_tab_resources(self) -> None:
+        self.query_one("#tabs", TabbedContent).active = "tab-resources"

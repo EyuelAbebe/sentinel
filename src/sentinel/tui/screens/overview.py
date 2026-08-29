@@ -82,7 +82,7 @@ class OverviewScreen(Widget):
         yield RichLog(id="activity-log", highlight=True, markup=True, max_lines=200)
         yield KeyBar(
             [
-                ("1-4", "Tabs"),
+                ("1-7", "Tabs"),
                 ("s", "Rescan"),
                 ("p", "Pause"),
                 ("?", "Help"),
