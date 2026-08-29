@@ -15,27 +15,30 @@ Sentinel watches your processes, open ports, and network connections. When somet
 **Requires macOS 14+, Python 3.12+**
 
 ```bash
-pipx install "sentinel[tui]"   # CLI + interactive monitor
-pipx install sentinel           # CLI only
+git clone https://github.com/EyuelAbebe/sentinel.git
+cd sentinel
+pip install poetry && poetry install
 ```
 
 Verify:
 
 ```bash
-sentinel doctor
+poetry run sentinel doctor
 ```
 
-> Need pip, virtualenv, or launchd auto-start? See [docs/installation.md](docs/installation.md).
+> For pip, pipx, launchd auto-start, and upgrade instructions see [docs/installation.md](docs/installation.md).
 
 ---
 
 ## Quick start
 
 ```bash
-sentinel scan        # one-shot security scan
-sentinel             # open interactive live monitor (TUI)
-sentinel serve       # start local API + browser dashboard on :7173
+poetry run sentinel scan        # one-shot security scan
+poetry run sentinel             # open interactive live monitor (TUI)
+poetry run sentinel serve       # start HTTP API + browser dashboard on :7173
 ```
+
+Or activate the virtualenv once: `source .venv/bin/activate`, then just `sentinel <cmd>`.
 
 ---
 

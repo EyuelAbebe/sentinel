@@ -4,11 +4,12 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Static
+from textual.widgets import DataTable, Static
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity
 from sentinel.domain.findings import Finding
+from sentinel.tui.widgets.key_bar import KeyBar
 
 _SEV_COLOR: dict[Severity, str] = {
     Severity.LOW: "yellow",
@@ -49,10 +50,20 @@ class FindingsScreen(Screen[None]):
         table.add_columns("Sev", "Title", "Subject", "Signals")
         yield table
         yield Static(
-            "[dim]↑ / ↓  navigate · Enter  inspect · no finding selected[/dim]",
+            "[dim]Select a finding to see the full explanation, signals, and affected subject[/dim]",
             id="finding-detail",
         )
-        yield Footer()
+        yield KeyBar(
+            [
+                ("↑↓", "Navigate"),
+                ("Enter", "Detail"),
+                ("s", "Rescan"),
+                ("p", "Pause"),
+                ("1-4", "Tabs"),
+                ("?", "Help"),
+                ("q", "Quit"),
+            ]
+        )
 
     def update_result(self, result: ScanResult) -> None:
         self._findings = result.findings

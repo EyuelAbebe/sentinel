@@ -6,11 +6,12 @@ from typing import Any
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Footer, RichLog, Static
+from textual.widgets import RichLog, Static
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity
 from sentinel.domain.findings import Finding
+from sentinel.tui.widgets.key_bar import KeyBar
 from sentinel.tui.widgets.summary_bar import SummaryBar
 
 _SEV_BADGE: dict[Severity, tuple[str, str]] = {
@@ -78,7 +79,15 @@ class OverviewScreen(Screen[None]):
             "── LIVE ACTIVITY ────────────────────────────────────────", id="activity-header"
         )
         yield RichLog(id="activity-log", highlight=True, markup=True, max_lines=200)
-        yield Footer()
+        yield KeyBar(
+            [
+                ("1-4", "Tabs"),
+                ("s", "Rescan"),
+                ("p", "Pause"),
+                ("?", "Help"),
+                ("q", "Quit"),
+            ]
+        )
 
     def set_scanning(
         self,
