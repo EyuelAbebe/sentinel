@@ -18,24 +18,52 @@ Sentinel watches your running processes, open ports, and network connections in 
 
 ---
 
-## Quick start
+## Install
 
-**Requirements:** macOS 14+, Python 3.12+, [Poetry](https://python-poetry.org)
+**Requirements:** macOS 14+, Python 3.12+
+
+### Option A — CLI only (no interactive TUI)
+
+The CLI covers `sentinel scan`, `sentinel processes`, `sentinel ports`, and `sentinel network`.
 
 ```bash
-git clone <repo-url> sentinel
-cd sentinel
-poetry install
-poetry run sentinel doctor    # verify your environment
-poetry run sentinel scan      # run your first scan
-poetry run sentinel           # open the interactive monitor
+pip install sentinel
+sentinel doctor    # verify your environment
+sentinel scan      # run your first scan
 ```
 
-Or install globally so `sentinel` is always available:
+### Option B — CLI + interactive TUI
+
+Includes the Textual-based live monitor (`sentinel` with no arguments).
 
 ```bash
-pipx install .
+pip install "sentinel[tui]"
+sentinel          # open the interactive monitor
+```
+
+### Option C — pipx (recommended for global install)
+
+[pipx](https://pipx.pypa.io) installs Sentinel in its own isolated environment and puts the `sentinel` command on your PATH.
+
+```bash
+# CLI only
+pipx install sentinel
+
+# CLI + TUI
+pipx install "sentinel[tui]"
+
 sentinel doctor
+```
+
+### Option D — from source (development)
+
+```bash
+git clone https://github.com/EyuelAbebe/sentinel.git
+cd sentinel
+poetry install          # installs CLI + TUI + dev tools
+poetry run sentinel doctor
+poetry run sentinel scan
+poetry run sentinel     # open the interactive monitor
 ```
 
 ---

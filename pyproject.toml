@@ -1,23 +1,45 @@
 [tool.poetry]
 name = "sentinel"
 version = "0.1.0"
-description = "Local security and privacy monitoring tool"
+description = "Local security and privacy monitoring for macOS — processes, ports, and network connections in one view"
 authors = ["Eyuel Abebe <eyueld@gmail.com>"]
 readme = "README.md"
 license = "MIT"
-keywords = ["security", "privacy", "monitoring", "processes", "network"]
+homepage = "https://github.com/EyuelAbebe/sentinel"
+repository = "https://github.com/EyuelAbebe/sentinel"
+documentation = "https://github.com/EyuelAbebe/sentinel#readme"
+keywords = ["security", "privacy", "monitoring", "processes", "network", "macos"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: System :: Monitoring",
+  "Topic :: System :: Networking :: Monitoring",
+]
 packages = [{include = "sentinel", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
 typer = ">=0.12"
 rich = ">=13"
-textual = ">=0.80"
 psutil = ">=6"
 pydantic = ">=2"
 pydantic-settings = ">=2"
 sqlalchemy = ">=2"
 alembic = ">=1.13"
+# TUI is optional — install with: pip install sentinel[tui]
+textual = {version = ">=0.80", optional = true}
+
+[tool.poetry.extras]
+tui = ["textual"]
+all = ["textual"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8"

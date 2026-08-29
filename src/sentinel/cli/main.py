@@ -214,6 +214,13 @@ def watch() -> None:
 
 
 def _launch_tui() -> None:
-    from sentinel.tui.app import SentinelApp
+    try:
+        from sentinel.tui.app import SentinelApp
+    except ImportError:
+        console.print(
+            "[bold red]The interactive TUI requires the [cyan]textual[/cyan] package.[/bold red]\n"
+            "Install it with:  [bold]pip install 'sentinel[tui]'[/bold]"
+        )
+        raise SystemExit(1)
 
     SentinelApp().run()

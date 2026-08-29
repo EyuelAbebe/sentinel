@@ -74,5 +74,5 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Very short-lived processes (< poll interval) may not be detected
 - Deep scan, YARA-X, browser extension, baselines, and classification are planned for later phases
 
-[Unreleased]: https://github.com/your-org/sentinel/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/your-org/sentinel/releases/tag/v0.1.0
+[Unreleased]: https://github.com/EyuelAbebe/sentinel/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/EyuelAbebe/sentinel/releases/tag/v0.1.0
