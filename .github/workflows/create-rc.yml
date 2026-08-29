@@ -1,0 +1,92 @@
+name: Create Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options: [patch, minor, major]
+        default: minor
+
+permissions:
+  contents: write
+
+jobs:
+  create-rc:
+    name: Test and tag ${{ inputs.bump }} RC
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache virtual environment
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-3.12-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --all-extras
+
+      - name: Lint
+        run: poetry run ruff check src/ tests/
+
+      - name: Format check
+        run: poetry run ruff format --check src/ tests/
+
+      - name: Type check
+        run: poetry run mypy
+
+      - name: Tests
+        run: poetry run pytest --tb=short -q
+
+      - name: Bump version
+        run: poetry version ${{ inputs.bump }}
+
+      - name: Get new version
+        id: ver
+        run: echo "VERSION=$(poetry version -s)" >> "$GITHUB_OUTPUT"
+
+      - name: Determine RC number
+        id: rc
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION }}"
+          LAST=$(git tag --list "v${VERSION}-rc.*" | sort -V | tail -1)
+          if [ -z "$LAST" ]; then
+            N=1
+          else
+            N=$(echo "$LAST" | sed 's/.*rc\.\([0-9]*\)$/\1/')
+            N=$((N + 1))
+          fi
+          echo "RC_TAG=v${VERSION}-rc.${N}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml poetry.lock
+          git commit -m "bump version to ${{ steps.ver.outputs.VERSION }}"
+          git push origin main
+
+      - name: Create and push RC tag
+        run: |
+          git tag -a "${{ steps.rc.outputs.RC_TAG }}" \
+            -m "${{ steps.rc.outputs.RC_TAG }} — release candidate"
+          git push origin "${{ steps.rc.outputs.RC_TAG }}"
+          echo "Created ${{ steps.rc.outputs.RC_TAG }}"

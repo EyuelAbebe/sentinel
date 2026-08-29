@@ -1,0 +1,109 @@
+name: Promote to Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "RC tag to promote (e.g. v0.2.0-rc.1)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.rc_tag }} to release
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.rc_tag }}
+
+      - name: Validate RC tag format
+        run: |
+          if ! echo "${{ inputs.rc_tag }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$'; then
+            echo "Error: expected format v{major}.{minor}.{patch}-rc.{n}"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --all-extras
+
+      - name: Tests
+        run: poetry run pytest --tb=short -q
+
+      - name: Derive release version
+        id: ver
+        run: |
+          RC="${{ inputs.rc_tag }}"
+          RELEASE_TAG="${RC%-rc.*}"
+          VERSION="${RELEASE_TAG#v}"
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify pyproject.toml version matches tag
+        run: |
+          ACTUAL=$(poetry version -s)
+          if [ "$ACTUAL" != "${{ steps.ver.outputs.VERSION }}" ]; then
+            echo "Version mismatch: pyproject.toml=$ACTUAL, tag=${{ steps.ver.outputs.VERSION }}"
+            exit 1
+          fi
+
+      - name: Build distributions
+        run: poetry build
+
+      - name: Create and push release tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.ver.outputs.RELEASE_TAG }}" \
+            -m "Release ${{ steps.ver.outputs.RELEASE_TAG }}"
+          git push origin "${{ steps.ver.outputs.RELEASE_TAG }}"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION }}"
+          if grep -q "## \[${VERSION}\]" CHANGELOG.md 2>/dev/null; then
+            NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          else
+            PREV=$(git tag --sort=-version:refname | grep -vE '\-rc\.' | grep -v "^${{ steps.ver.outputs.RELEASE_TAG }}$" | head -1)
+            if [ -n "$PREV" ]; then
+              NOTES="### Changes since ${PREV}"$'\n'"$(git log "${PREV}..${{ inputs.rc_tag }}" --pretty=format:'- %s' --no-merges)"
+            else
+              NOTES="Initial release."
+            fi
+          fi
+          { echo "NOTES<<EOF"; echo "$NOTES"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.RELEASE_TAG }}
+          name: "Sentinel ${{ steps.ver.outputs.RELEASE_TAG }}"
+          body: ${{ steps.notes.outputs.NOTES }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          draft: false
+          prerelease: false
+
+      - name: Publish to PyPI
+        if: ${{ secrets.PYPI_TOKEN != '' }}
+        run: poetry publish --no-interaction
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
