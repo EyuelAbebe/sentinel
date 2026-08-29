@@ -36,10 +36,14 @@ sqlalchemy = ">=2.0"
 alembic = ">=1.13"
 # TUI is optional — install with: pip install sentinel[tui]
 textual = {version = ">=0.80", optional = true}
+# HTTP API is optional — install with: pip install sentinel[api]
+fastapi = {version = ">=0.111", optional = true}
+uvicorn = {extras = ["standard"], version = "^0.52.4", optional = true}
 
 [tool.poetry.extras]
 tui = ["textual"]
-all = ["textual"]
+api = ["fastapi", "uvicorn"]
+all = ["textual", "fastapi", "uvicorn"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8"
@@ -48,6 +52,7 @@ ruff = ">=0.5"
 mypy = ">=1.10"
 types-psutil = "*"
 pre-commit = ">=3"
+httpx = "^0.28.1"
 
 [tool.poetry.scripts]
 sentinel = "sentinel.cli.main:app"
