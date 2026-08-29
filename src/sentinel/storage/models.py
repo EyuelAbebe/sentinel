@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Integer, String
+from sqlalchemy import JSON, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -47,3 +47,22 @@ class FindingRecord(Base):
 
     def __repr__(self) -> str:
         return f"FindingRecord(id={self.id}, title={self.title!r}, severity={self.severity})"
+
+
+class BaselineEntry(Base):
+    """User-defined expectation — processes/ports/domains that should not raise findings."""
+
+    __tablename__ = "baselines"
+    __table_args__ = (UniqueConstraint("subject_type", "subject", name="uq_baseline_subject"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subject_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    reason: Mapped[str] = mapped_column(String, nullable=False, default="")
+    added_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    added_by: Mapped[str] = mapped_column(String, nullable=False, default="user")
+
+    def __repr__(self) -> str:
+        return f"BaselineEntry(id={self.id}, type={self.subject_type}, subject={self.subject!r})"

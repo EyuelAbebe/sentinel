@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sentinel.application.correlation import CorrelatedProcess
-from sentinel.domain.enums import ExposureLevel, PrivacyCategory, Severity
+from sentinel.domain.enums import ExposureLevel, FindingStatus, PrivacyCategory, Severity
 from sentinel.domain.findings import Finding, FindingReason
+
+if TYPE_CHECKING:
+    from sentinel.application.baseline_service import BaselineService
 
 
 class FindingEngine:
     """Evaluates signals against correlated process data to produce findings."""
+
+    def __init__(self, baseline: BaselineService | None = None) -> None:
+        self._baseline = baseline
 
     def evaluate(self, correlated: list[CorrelatedProcess]) -> list[Finding]:
         findings: list[Finding] = []
@@ -14,10 +22,15 @@ class FindingEngine:
             reasons = self._collect_reasons(cp)
             if reasons:
                 severity = self._derive_severity(reasons)
+                status = FindingStatus.OPEN
+                if self._baseline and self._baseline.is_process_expected(cp.name):
+                    status = FindingStatus.EXPECTED
                 finding = Finding(
                     severity=severity,
                     title=cp.name,
                     subject=cp.name,
+                    status=status,
+                    expected=(status == FindingStatus.EXPECTED),
                     reasons=reasons,
                     evidence_refs=[cp.instance_id],
                 )
@@ -45,6 +58,8 @@ class FindingEngine:
             )
 
         for listener in cp.listeners:
+            if self._baseline and self._baseline.is_port_expected(listener.local_endpoint.port):
+                continue
             if listener.exposure == ExposureLevel.ALL_INTERFACES:
                 reasons.append(
                     FindingReason(
@@ -70,6 +85,13 @@ class FindingEngine:
 
         for conn in cp.connections:
             ep = conn.remote_endpoint
+            if (
+                ep
+                and ep.hostname
+                and self._baseline
+                and self._baseline.is_domain_expected(ep.hostname)
+            ):
+                continue
             if ep and ep.category in (PrivacyCategory.TRACKING, PrivacyCategory.ADVERTISING):
                 label = ep.organization or ep.hostname or ep.address
                 reasons.append(
