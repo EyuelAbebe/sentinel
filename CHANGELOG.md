@@ -11,6 +11,32 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.0] — 2026-08-29
+
+### Added
+
+**Search/Inspect tab (TUI)**
+- New "5 Search" tab with real-time filtering by port number, process name, or IP address
+- Results `DataTable` with columns Type / Port·Address / Process / State·Exposure
+- Detail panel updates as cursor moves, showing full breakdown for listeners and connections
+- Press `/` from any tab to jump to Search and focus the input field
+- Press `5` to switch to the Search tab
+
+**`sentinel inspect` CLI command**
+- `sentinel inspect <query>` — runs a scan and deep-dives into a specific port, process, or IP
+- Displays matching listeners as Rich panels with process, bind address, exposure, path, user, and command
+- Displays matching connections as a table (local ↔ remote, state)
+- Appends any related findings at the bottom so you see the full picture in one command
+
+**CLI output legend**
+- Severity legend printed after the summary table: `▲ LOW  ◆ MEDIUM  ● HIGH  ⬛ CRITICAL`
+- "Attention = findings that need review" inline explanation
+
+### Changed
+- `KeyBar` hints on Search tab updated to show `1-5` tab range and `/` for search
+
+---
+
 ## [0.3.0] — 2026-08-29
 
 ### Added

@@ -119,12 +119,27 @@ async def scan() -> dict[str, Any]:
         logger.error("scan failed: %s", exc)
         return {"error": str(exc)}
 
+    listeners = []
+    for cp in result.correlated:
+        for sock in cp.listeners:
+            listeners.append(
+                {
+                    "port": sock.local_endpoint.port,
+                    "protocol": sock.local_endpoint.protocol.upper(),
+                    "address": sock.local_endpoint.address,
+                    "exposure": sock.exposure.value,
+                    "process": cp.name,
+                    "pid": cp.pid,
+                }
+            )
+
     return {
         "process_count": result.process_count,
         "listener_count": result.listener_count,
         "connection_count": result.connection_count,
         "attention_count": result.attention_count,
         "scan_time": result.scan_time.isoformat(),
+        "listeners": listeners,
         "findings": [
             {
                 "id": f.id,

@@ -405,8 +405,8 @@
     // Findings
     renderFindings(data.findings || []);
 
-    // Ports (from findings we can get listener info; full port list needs /scan extension)
-    renderFindings(data.findings || []);
+    // Ports
+    renderPorts(data.listeners || []);
   }
 
   function setStatCard(name, value, special, cls) {
@@ -446,6 +446,46 @@
           ${reasons}
         </div>`;
     }).join('');
+  }
+
+  function renderPorts(listeners) {
+    const body = document.getElementById('ports-body');
+    const badge = document.getElementById('ports-count');
+    badge.textContent = listeners.length;
+
+    if (listeners.length === 0) {
+      body.innerHTML = '<div class="empty-msg">No open ports detected</div>';
+      return;
+    }
+
+    const EXP = {
+      'all_interfaces': ['⚠', 'exp-all', 'All interfaces'],
+      'local_network':  ['◆', 'exp-local', 'Local network'],
+      'loopback':       ['·', 'exp-loop', 'Localhost only'],
+    };
+
+    const rows = listeners
+      .sort((a, b) => {
+        const order = { all_interfaces: 0, local_network: 1, loopback: 2 };
+        return (order[a.exposure] ?? 9) - (order[b.exposure] ?? 9) || a.port - b.port;
+      })
+      .map(l => {
+        const [icon, cls, label] = EXP[l.exposure] || ['?', '', l.exposure];
+        return `<tr>
+          <td class="flag ${cls}">${icon}</td>
+          <td><strong>:${l.port}</strong></td>
+          <td style="color:var(--muted)">${escHtml(l.protocol)}</td>
+          <td>${escHtml(l.process)}</td>
+          <td class="${cls}">${label}</td>
+        </tr>`;
+      }).join('');
+
+    body.innerHTML = `<table class="ports-table">
+      <thead><tr>
+        <th class="flag"></th><th>Port</th><th>Proto</th><th>Process</th><th>Exposure</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }
 
   // ── Activity log ─────────────────────────────────────────────────────────────

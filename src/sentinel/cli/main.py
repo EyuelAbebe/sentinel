@@ -339,6 +339,24 @@ def network() -> None:
 
 
 @app.command()
+def inspect(
+    query: str = typer.Argument(..., help="Port number, process name, or IP address to inspect."),
+) -> None:
+    """Deep-dive into a specific port, process name, or IP address."""
+    from sentinel.application.scan_service import QuickScanService
+    from sentinel.cli.renderers.rich_renderer import render_inspect
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
+
+    svc = QuickScanService(
+        process_collector=PsutilProcessCollector(),
+        network_collector=PsutilNetworkCollector(),
+    )
+    result = asyncio.run(svc.run())
+    render_inspect(result, query)
+
+
+@app.command()
 def watch() -> None:
     """Launch the interactive TUI monitor."""
     _launch_tui()
