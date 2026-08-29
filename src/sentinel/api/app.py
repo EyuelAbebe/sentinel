@@ -120,6 +120,10 @@ async def scan() -> dict[str, Any]:
         return {"error": str(exc)}
 
     listeners = []
+    connections = []
+    processes = []
+    seen_pids: set[int] = set()
+
     for cp in result.correlated:
         for sock in cp.listeners:
             listeners.append(
@@ -132,6 +136,40 @@ async def scan() -> dict[str, Any]:
                     "pid": cp.pid,
                 }
             )
+        for conn in cp.connections:
+            remote = None
+            if conn.remote_endpoint:
+                remote = {
+                    "address": conn.remote_endpoint.address,
+                    "port": conn.remote_endpoint.port,
+                }
+            connections.append(
+                {
+                    "process": cp.name,
+                    "pid": cp.pid,
+                    "local_address": conn.local_endpoint.address,
+                    "local_port": conn.local_endpoint.port,
+                    "remote": remote,
+                    "state": conn.socket_state.upper(),
+                    "protocol": conn.local_endpoint.protocol.upper(),
+                }
+            )
+        if cp.pid not in seen_pids:
+            seen_pids.add(cp.pid)
+            identity = cp.observation.identity
+            port_list = [s.local_endpoint.port for s in cp.listeners]
+            processes.append(
+                {
+                    "pid": cp.pid,
+                    "name": cp.name,
+                    "user": identity.user,
+                    "executable_path": identity.executable_path,
+                    "ports": port_list,
+                    "has_finding": any(
+                        f for f in result.findings if f.subject and cp.name in f.subject
+                    ),
+                }
+            )
 
     return {
         "process_count": result.process_count,
@@ -140,6 +178,8 @@ async def scan() -> dict[str, Any]:
         "attention_count": result.attention_count,
         "scan_time": result.scan_time.isoformat(),
         "listeners": listeners,
+        "connections": connections,
+        "processes": processes,
         "findings": [
             {
                 "id": f.id,

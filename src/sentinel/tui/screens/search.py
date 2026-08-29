@@ -91,16 +91,31 @@ class SearchScreen(Widget):
     def on_show(self) -> None:
         with contextlib.suppress(Exception):
             self.query_one("#search-input", Input).focus()
+        if not self._correlated:
+            with contextlib.suppress(Exception):
+                self.query_one("#search-detail", Static).update(
+                    "[dim]No scan data yet — press [bold]s[/bold] to run a scan, "
+                    "then type here to search.[/dim]"
+                )
 
     def focus_input(self) -> None:
         with contextlib.suppress(Exception):
-            self.query_one("#search-input", Input).focus()
+            inp = self.query_one("#search-input", Input)
+            inp.focus()
 
     def update_result(self, result: ScanResult) -> None:
         self._correlated = result.correlated
         with contextlib.suppress(Exception):
             query = self.query_one("#search-input", Input).value
-            self._run_query(query)
+            if query.strip():
+                self._run_query(query)
+            else:
+                # Show summary of available data
+                n_procs = len({cp.pid for cp in result.correlated if cp.pid != 0})
+                n_ports = sum(len(cp.listeners) for cp in result.correlated)
+                self.query_one("#search-detail", Static).update(
+                    f"[dim]Data ready: {n_procs} processes, {n_ports} ports — type to filter.[/dim]"
+                )
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "search-input":

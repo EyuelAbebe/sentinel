@@ -148,6 +148,15 @@ class NetworkScreen(Widget):
             f"── ACTIVE CONNECTIONS ({n_conns}) ─────────────────────────────────"
         )
 
+        if n_listeners == 0 and n_conns == 0:
+            with contextlib.suppress(Exception):
+                self.query_one("#net-detail", Static).update(
+                    "[yellow]No network data visible.[/yellow]\n\n"
+                    "[dim]macOS restricts socket visibility without elevated privileges.\n"
+                    "Run  [bold]sudo sentinel[/bold]  for complete network data.\n\n"
+                    "Press  [bold]s[/bold]  to rescan.[/dim]"
+                )
+
     def _render_listener_detail(self, idx: int) -> None:
         if idx < 0 or idx >= len(self._listener_rows):
             return

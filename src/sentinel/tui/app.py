@@ -136,6 +136,8 @@ class SentinelApp(App[None]):
         Binding("6", "tab_users", "Users", show=False),
         Binding("7", "tab_resources", "Resources", show=False),
         Binding("slash", "focus_search", "Search", key_display="/", show=True),
+        Binding("comma", "prev_tab", "← Tab", key_display="<", show=False),
+        Binding("period", "next_tab", "→ Tab", key_display=">", show=False),
     ]
 
     def __init__(self) -> None:
@@ -321,3 +323,31 @@ class SentinelApp(App[None]):
 
     def action_tab_resources(self) -> None:
         self.query_one("#tabs", TabbedContent).active = "tab-resources"
+
+    _TAB_ORDER = [
+        "tab-overview",
+        "tab-apps",
+        "tab-network",
+        "tab-findings",
+        "tab-search",
+        "tab-users",
+        "tab-resources",
+    ]
+
+    def action_prev_tab(self) -> None:
+        tabs = self.query_one("#tabs", TabbedContent)
+        current = tabs.active
+        try:
+            idx = self._TAB_ORDER.index(current)
+        except ValueError:
+            return
+        tabs.active = self._TAB_ORDER[(idx - 1) % len(self._TAB_ORDER)]
+
+    def action_next_tab(self) -> None:
+        tabs = self.query_one("#tabs", TabbedContent)
+        current = tabs.active
+        try:
+            idx = self._TAB_ORDER.index(current)
+        except ValueError:
+            return
+        tabs.active = self._TAB_ORDER[(idx + 1) % len(self._TAB_ORDER)]
