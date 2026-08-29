@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sentinel.agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Replaced by install.sh with the absolute path to the sentinel binary -->
+        <string>SENTINEL_BIN</string>
+        <string>serve</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>7173</string>
+    </array>
+
+    <!-- Start immediately and restart on crash -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Throttle restarts — wait 10 s before restarting after a crash -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- Log stdout/stderr to ~/Library/Logs/sentinel/ -->
+    <key>StandardOutPath</key>
+    <string>SENTINEL_LOG_DIR/sentinel.log</string>
+    <key>StandardErrorPath</key>
+    <string>SENTINEL_LOG_DIR/sentinel.err.log</string>
+
+    <!-- Run as the installing user (not root) -->
+    <key>UserName</key>
+    <string>SENTINEL_USER</string>
+
+    <!-- Sandbox: only network bind on loopback is needed -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SENTINEL_LOG_LEVEL</key>
+        <string>WARNING</string>
+    </dict>
+</dict>
+</plist>
