@@ -78,7 +78,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
 
       - name: Publish to PyPI
-        if: ${{ !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha') }}
+        if: ${{ secrets.PYPI_TOKEN != '' && !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha') }}
         run: poetry publish --no-interaction
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
