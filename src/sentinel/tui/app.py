@@ -5,17 +5,38 @@ from datetime import UTC, datetime
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.message import Message
 from textual.widgets import Header, TabbedContent, TabPane
 
+from sentinel.application.event_bus import EventBus
+from sentinel.application.live_monitor import LiveMonitorService
 from sentinel.application.scan_service import QuickScanService, ScanResult
 from sentinel.collectors.network_psutil import PsutilNetworkCollector
 from sentinel.collectors.process_psutil import PsutilProcessCollector
 from sentinel.config import get_config
+from sentinel.domain.enums import EventType
+from sentinel.domain.events import Event as DomainEvent
+from sentinel.storage.database import get_engine, init_db
 from sentinel.tui.screens.apps import AppsScreen
 from sentinel.tui.screens.findings import FindingsScreen
 from sentinel.tui.screens.help import HelpScreen
 from sentinel.tui.screens.network import NetworkScreen
 from sentinel.tui.screens.overview import OverviewScreen
+
+_EVENT_LABEL: dict[EventType, tuple[str, str]] = {
+    EventType.PROCESS_STARTED: ("green", "⬆ process started"),
+    EventType.PROCESS_STOPPED: ("dim", "⬇ process stopped"),
+    EventType.PORT_OPENED: ("yellow", "◆ port opened"),
+    EventType.PORT_CLOSED: ("dim", "◇ port closed"),
+    EventType.CONNECTION_OPENED: ("cyan", "→ connection"),
+    EventType.CONNECTION_CLOSED: ("dim", "← disconnected"),
+}
+
+
+class _ActivityLine(Message):
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self.text = text
 
 
 class SentinelApp(App[None]):
@@ -40,9 +61,22 @@ class SentinelApp(App[None]):
 
     def __init__(self) -> None:
         super().__init__()
+        cfg = get_config()
+        _procs = PsutilProcessCollector()
+        _nets = PsutilNetworkCollector()
+        self._bus = EventBus()
         self._svc = QuickScanService(
-            process_collector=PsutilProcessCollector(),
-            network_collector=PsutilNetworkCollector(),
+            process_collector=_procs,
+            network_collector=_nets,
+        )
+        _engine = get_engine()
+        init_db(_engine)
+        self._monitor = LiveMonitorService(
+            process_collector=_procs,
+            network_collector=_nets,
+            event_bus=self._bus,
+            engine=_engine,
+            poll_interval=cfg.poll_interval_seconds,
         )
         self._paused = False
         self._last_result: ScanResult | None = None
@@ -59,9 +93,29 @@ class SentinelApp(App[None]):
             with TabPane("Findings", id="tab-findings"):
                 yield FindingsScreen(id="findings")
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
+        self._bus.subscribe_all(self._on_domain_event)
+        await self._monitor.start()
         self.run_worker(self._initial_scan(), exclusive=False)
         self.set_interval(get_config().poll_interval_seconds * 5, self._refresh_scan)
+
+    async def on_unmount(self) -> None:
+        await self._monitor.stop()
+
+    async def _on_domain_event(self, event: DomainEvent) -> None:
+        ts = datetime.now(UTC).strftime("%H:%M:%S")
+        color, label = _EVENT_LABEL.get(event.event_type, ("dim", event.event_type.value))
+        name = event.payload.get("name", "")
+        port = event.payload.get("local_port", "")
+        detail = name or (f":{port}" if port else "")
+        text = f"{ts}  [{color}]{label}[/{color}]"
+        if detail:
+            text += f"  [bold]{detail}[/bold]"
+        self.post_message(_ActivityLine(text))
+
+    def on__activity_line(self, msg: _ActivityLine) -> None:
+        with contextlib.suppress(Exception):
+            self.query_one("#overview", OverviewScreen).log_activity(msg.text)
 
     async def _initial_scan(self) -> None:
         await self._do_scan()
