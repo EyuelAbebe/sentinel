@@ -17,8 +17,8 @@ class KeyBar(Widget):
     DEFAULT_CSS = """
     KeyBar {
         height: 1;
-        background: $surface;
-        border-top: solid $primary-darken-2;
+        background: #0d1521;
+        border-top: solid #00ff9f;
         padding: 0 1;
         content-align: left middle;
     }
@@ -32,7 +32,7 @@ class KeyBar(Widget):
         text = Text(overflow="ellipsis", no_wrap=True)
         for i, (key, label) in enumerate(self._hints):
             if i > 0:
-                text.append("  ")
-            text.append(f" {key} ", style="bold black on cyan")
-            text.append(label, style="")
+                text.append("  ", style="")
+            text.append(f" {key} ", style="bold black on #00ff9f")
+            text.append(f" {label}", style="#2a6a8a")
         return text

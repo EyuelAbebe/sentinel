@@ -5,7 +5,7 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import RichLog, Static
 
 from sentinel.application.scan_service import ScanResult
@@ -22,12 +22,12 @@ _SEV_BADGE: dict[Severity, tuple[str, str]] = {
 }
 
 
-class OverviewScreen(Screen[None]):
-    TITLE = "Overview"
-
+class OverviewScreen(Widget):
     DEFAULT_CSS = """
     OverviewScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     #summary {
         height: 7;
@@ -35,29 +35,30 @@ class OverviewScreen(Screen[None]):
     #scan-status {
         height: 1;
         padding: 0 2;
-        background: $panel;
-        color: $text-muted;
+        background: #0d1521;
+        color: #2a6a8a;
     }
     #attention-header {
         padding: 0 2;
         margin-top: 1;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     #attention-area {
         height: 1fr;
         padding: 0 2;
         min-height: 3;
+        background: #080e18;
     }
     #activity-header {
         padding: 0 2;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     #activity-log {
         height: 10;
-        border-top: solid $primary;
-        background: $panel;
+        border-top: solid #00ff9f;
+        background: #0d1521;
     }
     """
 

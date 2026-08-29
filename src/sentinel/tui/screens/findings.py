@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
 from sentinel.application.scan_service import ScanResult
@@ -26,18 +26,19 @@ _SEV_ICON: dict[Severity, str] = {
 }
 
 
-class FindingsScreen(Screen[None]):
-    TITLE = "Findings"
-
+class FindingsScreen(Widget):
     DEFAULT_CSS = """
     FindingsScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     #finding-detail {
         height: 12;
-        border-top: solid $primary;
+        border-top: solid #00ff9f;
         padding: 1 2;
-        background: $panel;
+        background: #0d1521;
+        color: #a0c8e8;
     }
     """
 

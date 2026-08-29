@@ -97,13 +97,16 @@ class HelpScreen(Screen[None]):
 
     DEFAULT_CSS = """
     HelpScreen {
-        background: $surface;
+        background: #080e18;
     }
     #help-scroll {
         padding: 0;
+        background: #080e18;
     }
     #help-content {
         padding: 1 3;
+        color: #a0c8e8;
+        background: #080e18;
     }
     """
 

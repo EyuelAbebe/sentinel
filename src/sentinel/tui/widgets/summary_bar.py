@@ -14,32 +14,35 @@ class StatBox(Widget):
     DEFAULT_CSS = """
     StatBox {
         padding: 0 2;
-        border: round $primary-darken-2;
+        border: round #00e5ff;
         height: 5;
         min-width: 18;
         content-align: center middle;
+        background: #0d1521;
     }
     StatBox .label {
         text-style: bold;
-        color: $text-muted;
+        color: #2a6a8a;
         text-align: center;
     }
     StatBox .value {
         text-style: bold;
-        color: $accent;
+        color: #00e5ff;
         text-align: center;
     }
     StatBox.has-findings {
-        border: round $error;
+        border: round #ff3358;
+        background: #1a0810;
     }
     StatBox.has-findings .value {
-        color: $error;
+        color: #ff3358;
     }
     StatBox.all-clear {
-        border: round $success;
+        border: round #00ff9f;
+        background: #081a10;
     }
     StatBox.all-clear .value {
-        color: $success;
+        color: #00ff9f;
     }
     """
 
@@ -66,6 +69,7 @@ class SummaryBar(Horizontal):
         height: 7;
         align: center middle;
         padding: 1 2;
+        background: #080e18;
     }
     """
 

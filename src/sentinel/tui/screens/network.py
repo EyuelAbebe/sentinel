@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
 from sentinel.application.scan_service import ScanResult
@@ -21,16 +21,16 @@ _EXPOSURE_FLAG: dict[ExposureLevel, str] = {
 }
 
 
-class NetworkScreen(Screen[None]):
-    TITLE = "Network"
-
+class NetworkScreen(Widget):
     DEFAULT_CSS = """
     NetworkScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     .section-label {
         padding: 0 2;
-        color: $text-muted;
+        color: #00e5ff;
         text-style: bold;
     }
     """

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
 from sentinel.application.correlation import CorrelatedProcess
@@ -36,18 +36,19 @@ _SEV_ORDER: dict[Severity, int] = {
 _SUSPICIOUS_PATH_FRAGMENTS = ("/tmp/", "/var/tmp/", "/Downloads/", "/Temp/")
 
 
-class AppsScreen(Screen[None]):
-    TITLE = "Apps"
-
+class AppsScreen(Widget):
     DEFAULT_CSS = """
     AppsScreen {
         layout: vertical;
+        height: 1fr;
+        background: #080e18;
     }
     #detail-panel {
         height: 10;
-        border-top: solid $primary;
+        border-top: solid #00ff9f;
         padding: 1 2;
-        background: $panel;
+        background: #0d1521;
+        color: #a0c8e8;
     }
     """
 
