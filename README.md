@@ -6,62 +6,109 @@
 
 **Know what's running on your Mac.**
 
-Sentinel watches your processes, open ports, and network connections in real time. When something looks unusual — a process listening on all interfaces, an executable running from your Downloads folder, a binary that no longer exists on disk — it tells you exactly what it found and why.
-
-No cloud account. No root access. No noise.
+Sentinel watches your processes, open ports, and network connections. When something looks unusual it tells you exactly what it found and **why** — no cloud account, no root access, no noise.
 
 ---
 
-## What it does
+## See it in action
 
 ```
-Security Scan Complete
+$ sentinel scan
+
+ ──────────────── Security Scan ────────────────
 
   Processes   Listening ports   Connections   Attention
- ─────────────────────────────────────────────────────
+ ────────────────────────────────────────────────────
         231                14            42           1
 
-╭─ ! unknown-helper  HIGH ──────────────────────────────────╮
-│   Running from /Users/you/Downloads/unknown-helper        │
-│   Listening on :4444 (TCP) — accessible from all          │
-│   network interfaces                                      │
-╰───────────────────────────────────────────────────────────╯
+ ────────────────────────────────────────────────────
+
+ ╭─ ● unknown-helper  HIGH ──────────────────────────╮
+ │  › Running from /Users/you/Downloads/             │
+ │  › Listening on :4444 (TCP) — all interfaces      │
+ ╰────────────────────────────────────────────────────╯
 ```
 
-Every finding explains **why** it was flagged. Sentinel never says "unknown = dangerous" — it shows you the signals and lets you decide.
+```
+$ sentinel ports
+
+ Listening Ports
+ ─────────────────────────────────────────────────────────────────
+  Port   Protocol  Process       PID    Exposure
+ ─────────────────────────────────────────────────────────────────
+  22     TCP       sshd          891    Localhost only
+  443    TCP       nginx         2341   All interfaces
+  5432   TCP       postgres      3812   Localhost only
+```
+
+```
+$ sentinel doctor
+
+ Environment
+ ──────────────────────────────────────────────────────────────────
+  Check               Status   Detail
+ ──────────────────────────────────────────────────────────────────
+  Python ≥ 3.12       OK       3.12.3
+  psutil              OK       5.9.8
+  rich                OK       13.7.1
+  textual             OK       0.80.1
+  pydantic            OK       2.6.0
+  osquery (optional)  MISSING  not found
+```
 
 ---
 
 ## Install
 
-**Requires:** macOS 14+, Python 3.12+
-
-The recommended way is [pipx](https://pipx.pypa.io), which isolates Sentinel from your system Python and puts `sentinel` on your PATH:
+**Requires macOS 14+, Python 3.12+**
 
 ```bash
-# CLI + interactive TUI (recommended)
-pipx install "sentinel[tui]"
-
-# CLI only (scan, processes, ports, network — no interactive monitor)
-pipx install sentinel
+pipx install "sentinel[tui]"   # recommended — CLI + interactive monitor
+pipx install sentinel           # CLI only
 ```
 
-Verify everything works:
+Verify:
 
 ```bash
 sentinel doctor
 ```
 
-> **Want to run Sentinel automatically on login?** See [docs/installation.md](docs/installation.md) for launchd service setup, pip/virtualenv install, and upgrade instructions.
+> Need pip, virtualenv, or launchd auto-start? See [docs/installation.md](docs/installation.md).
 
 ---
 
 ## Quick start
 
 ```bash
-sentinel scan              # security scan with findings
-sentinel                   # open the interactive monitor
+sentinel scan        # security scan — processes, ports, findings
+sentinel             # open the interactive live monitor
+sentinel scan --json # machine-readable output (no ANSI)
 ```
+
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph mac ["Your Mac"]
+        A[Processes]
+        B[Ports]
+        C[Connections]
+    end
+    subgraph sentinel ["Sentinel"]
+        D[Correlate\nprocess ↔ socket]
+        E[Finding\nEngine]
+    end
+    subgraph out ["Output"]
+        F[CLI]
+        G[TUI]
+        H[JSON]
+    end
+    mac --> sentinel --> out
+```
+
+Each scan correlates every listening port and active connection back to its owning process. The finding engine evaluates signals against the correlated data — it never flags something without a concrete reason.
 
 ---
 
@@ -69,8 +116,8 @@ sentinel                   # open the interactive monitor
 
 | Command | Description |
 |---|---|
-| `sentinel scan` | Security scan — processes, ports, findings |
-| `sentinel scan --json` | Same, machine-readable JSON (no ANSI) |
+| `sentinel scan` | Security scan with findings |
+| `sentinel scan --json` | Same, machine-readable JSON |
 | `sentinel processes` | Table of running processes |
 | `sentinel ports` | Listening ports with exposure level |
 | `sentinel network` | Active outbound connections |
@@ -82,25 +129,26 @@ sentinel                   # open the interactive monitor
 
 ## What gets flagged
 
-| Signal | Why it matters | Severity |
-|---|---|---|
-| Listening on all interfaces (`0.0.0.0` / `::`) | Accessible from your entire network | MEDIUM |
-| Listening on all interfaces + suspicious path | Unexpected binary exposed to network | HIGH |
-| Running from `~/Downloads`, `/tmp`, `/var/tmp` | Executables rarely live here legitimately | MEDIUM |
-| Executable no longer exists on disk | Process running from a deleted file | HIGH |
+| Signal | Severity |
+|---|---|
+| Listening on all interfaces (`0.0.0.0` / `::`) | MEDIUM |
+| Listening on all interfaces + suspicious path | HIGH |
+| Running from `~/Downloads`, `/tmp`, `/var/tmp` | MEDIUM |
+| Executable no longer exists on disk | HIGH |
+
+Every finding shows the exact reasons it was raised. Sentinel never says "unknown = dangerous."
 
 ---
 
 ## Permissions
 
-Sentinel runs as a normal user — no root, no admin, no special entitlements. Some data is limited by macOS System Integrity Protection:
+Sentinel runs as a normal user — no root, no admin, no special entitlements.
 
-| What you get | Without root | With `sudo sentinel` |
+| What | Without root | With `sudo` |
 |---|---|---|
 | Your own processes | All | All |
 | System processes | Partial | All |
-| Port owners for SIP-protected processes | Partial | All |
-| Connections for SIP-protected processes | Partial | All |
+| Port owners (SIP-protected) | Partial | All |
 
 Run `sentinel doctor` to see exactly what is visible in your environment.
 
@@ -108,15 +156,13 @@ Run `sentinel doctor` to see exactly what is visible in your environment.
 
 ## Docs
 
-| Document | What's inside |
+| | |
 |---|---|
-| [Installation guide](docs/installation.md) | pipx, pip, launchd service, upgrade, uninstall |
-| [Contributing](docs/contributing.md) | Dev setup, branching, PR process, architecture rules |
-| [Release process](docs/release-process.md) | How RC tags and production releases work |
+| [Installation guide](docs/installation.md) | pipx, pip, launchd, upgrade, uninstall |
+| [Contributing](docs/contributing.md) | Dev setup, branching, PR process |
 | [Architecture](docs/architecture.md) | Layer diagram, scan pipeline, design decisions |
-| [Privacy model](docs/privacy-model.md) | What data is collected, stored, and never stored |
-| [Threat model](docs/threat-model.md) | Known threats against Sentinel itself |
-| [Permissions](docs/permissions.md) | Every OS permission used and why |
+| [Privacy model](docs/privacy-model.md) | What is and isn't collected or stored |
+| [Release process](docs/release-process.md) | RC and production release workflow |
 
 ---
 
