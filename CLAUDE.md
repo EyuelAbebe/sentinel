@@ -22,12 +22,90 @@ make test                       # pytest
 make lint                       # ruff check + format check
 make fmt                        # auto-fix lint + format
 make typecheck                  # mypy strict
-make bump-patch                 # 0.x.y → 0.x.(y+1)
-make bump-minor                 # 0.x.y → 0.(x+1).0
 ```
 
 Tests run with `pytest-asyncio` in `auto` mode. All async tests just work.
 Integration tests auto-skip if `psutil.net_connections()` is denied (macOS SIP).
+
+---
+
+## Developer workflow
+
+All work happens on branches. PRs are required to merge to `main`.
+
+### Branch naming
+
+| Type | Pattern | Example |
+|---|---|---|
+| New feature | `feature/<short-name>` | `feature/live-monitor` |
+| Bug fix | `fix/<short-name>` | `fix/exposure-classification` |
+| Documentation | `docs/<short-name>` | `docs/phase4-architecture` |
+| Refactor | `refactor/<short-name>` | `refactor/event-bus` |
+
+### Day-to-day
+
+```bash
+git checkout -b feature/my-thing    # branch from main
+# ... make changes ...
+make fmt && make lint && make typecheck && make test
+git push origin feature/my-thing
+gh pr create --title "short title" --body "what and why"
+# CI runs automatically; merge after it passes
+```
+
+### PR conventions
+
+- Title: imperative, ≤ 70 characters (`add live monitor polling loop`)
+- Body: bullet list of what changed and why
+- Keep PRs scoped — one feature or fix per PR
+- CI must be green before merging
+
+---
+
+## CI/CD pipeline
+
+Three GitHub Actions workflows live in `.github/workflows/`:
+
+### `ci.yml` — runs automatically
+
+Triggers on every branch push and every PR to `main`. Runs:
+1. `ruff check` — lint
+2. `ruff format --check` — formatting
+3. `mypy` — type check (strict)
+4. `pytest` — test suite
+
+Both Python 3.12 and 3.13 are tested in parallel on macOS runners.
+
+### `create-rc.yml` — manual, `workflow_dispatch`
+
+Triggered manually from **Actions → Create Release Candidate**.
+
+Input: `bump` = `patch` | `minor` | `major`
+
+Steps:
+1. Run full CI suite against `main`
+2. `poetry version {bump}` to increment `pyproject.toml`
+3. Commit version bump + push to `main`
+4. Create and push tag `v{version}-rc.N`
+
+Aborts if any test fails — no version bump, no tag.
+
+### `promote.yml` — manual, `workflow_dispatch`
+
+Triggered manually from **Actions → Promote to Release**.
+
+Input: `rc_tag` = e.g. `v0.2.0-rc.1`
+
+Steps:
+1. Checkout the exact RC commit
+2. Run `pytest`
+3. Verify `pyproject.toml` version matches tag
+4. Create and push final tag `v{version}`
+5. Build wheel + sdist
+6. Create GitHub Release with CHANGELOG notes
+7. Publish to PyPI (if `PYPI_TOKEN` secret is set)
+
+Full details: `docs/release-process.md`
 
 ---
 
@@ -77,7 +155,7 @@ Full architecture details: `docs/architecture.md`
 | 1 | Domain models, events, differ, event bus | ✅ Done |
 | 2 | psutil collectors, correlation, finding engine, scan service | ✅ Done |
 | 3 | Textual TUI (Overview / Apps / Network / Findings / Help) | ✅ Done |
-| 4 | Live monitoring + SQLite persistence | Next |
+| 4 | Live monitoring + SQLite persistence | **Next** |
 | 5 | Identity / classification engine (domain → org → category) | Planned |
 | 6 | Baselines and explainable findings | Planned |
 | 7 | Deep scan + YARA-X | Planned |
@@ -174,8 +252,10 @@ New signals must have a unit test in `tests/unit/test_finding_engine.py`.
 
 - Adding UI logic to `application/` — the application layer must be renderable by
   any interface (CLI, TUI, future GUI).
-- Using `datetime.utcnow()` — use `datetime.now(timezone.utc)` instead (Python 3.13
+- Using `datetime.utcnow()` — use `datetime.now(UTC)` instead (Python 3.13
   deprecates utcnow).
 - Hardcoding severity levels in the TUI or CLI.
 - Storing cookie values anywhere (even temporarily for debugging).
 - Running `psutil.net_connections()` without a try/except for `AccessDenied`.
+- Committing directly to `main` — always use a branch and PR.
+- Manually creating release tags — use the `create-rc` and `promote` workflows.
