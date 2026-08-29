@@ -1,6 +1,6 @@
 .PHONY: help install lint typecheck test run scan smoke fmt clean bump-patch bump-minor bump-major
 
-# Marker file — updated by `make install`. Make uses it to skip reinstall when nothing changed.
+# Marker file tracks last successful install. Deleted automatically when .venv is cleaned.
 INSTALLED_MARKER := .venv/.installed
 
 help:
@@ -23,21 +23,27 @@ help:
 	@echo "    make bump-patch / bump-minor / bump-major"
 	@echo ""
 
-$(INSTALLED_MARKER): pyproject.toml poetry.lock
+# Guard: runs install if marker is missing OR sentinel is not importable in the venv.
+_ensure-installed:
+	@if [ ! -f $(INSTALLED_MARKER) ] || ! poetry run python -c "import sentinel" 2>/dev/null; then \
+		$(MAKE) --no-print-directory _do-install; \
+	fi
+
+_do-install:
 	poetry config virtualenvs.in-project true
 	poetry env remove --all 2>/dev/null || true
 	poetry install --all-extras
 	@touch $(INSTALLED_MARKER)
 
-install: $(INSTALLED_MARKER)
+install: _do-install
 
-run: $(INSTALLED_MARKER)
+run: _ensure-installed
 	poetry run sentinel
 
-scan: $(INSTALLED_MARKER)
+scan: _ensure-installed
 	poetry run sentinel scan
 
-smoke: $(INSTALLED_MARKER)
+smoke: _ensure-installed
 	@echo "==> lint"
 	poetry run ruff check src/ tests/
 	poetry run ruff format --check src/ tests/

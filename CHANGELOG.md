@@ -9,6 +9,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Planned
+- Phase 4b: `LiveMonitorService` — poll, diff, persist events, emit via EventBus
+- Phase 4c: TUI live event feed integration
+- Phase 5: Identity and classification engine (domain → org → category)
+- Phase 6: Baselines and explainable findings
+- Phase 7: Deep scan with YARA-X and executable hash caching
+- Phase 8: Browser privacy extension (Chrome / Firefox)
+- Phase 9: Standalone GUI and local HTTP/WebSocket API
+
+---
+
+## [0.2.0] — 2026-08-29
+
 ### Added
 
 **Phase 4a — Storage Foundation**
@@ -19,24 +32,31 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `FindingRepository` — `write()` (idempotent by `finding_id`), `write_many()`, `query_active()`, `query_all()`, `count_active()`
 - `init_db()` — creates all tables from ORM metadata
 - 13 unit tests in `tests/unit/test_storage.py` using in-memory SQLite
+- `sqlalchemy>=2.0` and `alembic>=1.13` added as dependencies
+
+**CLI output polish**
+- Severity icons in finding panels: `●` HIGH, `◆` MEDIUM, `▲` LOW, `⬛` CRITICAL
+- `Rule` separator lines replace plain bold text in scan output
+- Finding reasons rendered as `rich.Text` with dim `›` bullet prefix
+- Warnings changed from invisible `[dim]` to visible `[yellow]⚠ `
+- Port numbers styled `bold cyan` in ports and processes tables
+- Remote addresses styled `cyan`, local addresses `dim` in network table
+
+**Documentation**
+- `docs/installation.md` — pipx, pip+venv, upgrade, uninstall, launchd service, troubleshooting
+- README: Mermaid pipeline diagram, terminal snapshots for `scan`/`ports`/`doctor`, cleaner layout
+- GitHub Actions workflow display names improved: `CI — Lint, Test & Smoke`, `Release — Create RC`, `Release — Promote to Production`
+
+**CI**
+- CI workflow split into three focused jobs: `quality` (ruff + mypy), `test` (pytest on 3.12 + 3.13), `smoke` (install from wheel + all CLI commands)
 
 **Developer tooling**
 - `.claude/commands/` — project slash commands: `/project:update-changelog`, `/project:start-phase`, `/project:create-pr`
-- `make smoke` — pre-PR local check: lint + tests + `sentinel scan` (functional verify)
+- `make smoke` — pre-PR local check: lint + tests + `sentinel scan`
 - `make scan` — quick one-shot scan without launching TUI
-- `make help` — lists all available targets with descriptions
-- Makefile uses `.venv/.installed` marker file — `make run`/`make scan`/`make smoke` only reinstall when `pyproject.toml` or `poetry.lock` change; avoids reinstalling 45 packages on every invocation
-- `make install` now calls `poetry env remove --all` before reinstalling — clears stale venv cache from path changes
-
-### Planned
-- Phase 4b: `LiveMonitorService` — poll, diff, persist events, emit via EventBus
-- Phase 4c: TUI live event feed
-- Phase 4: Live monitoring and persistent event history (SQLite + Alembic)
-- Phase 5: Identity and classification engine (domain → org → category)
-- Phase 6: Baselines and explainable findings
-- Phase 7: Deep scan with YARA-X and executable hash caching
-- Phase 8: Browser privacy extension (Chrome / Firefox)
-- Phase 9: Standalone GUI and local HTTP/WebSocket API
+- `make help` — lists all targets with descriptions
+- Makefile uses `.venv/.installed` marker — skips reinstall unless `pyproject.toml`/`poetry.lock` changed
+- `make install` calls `poetry env remove --all` before reinstalling to clear stale venv cache
 
 ---
 
@@ -72,7 +92,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `PsutilProcessCollector` — collects all visible processes; skips `AccessDenied` / `NoSuchProcess` gracefully
 - `PsutilNetworkCollector` — collects TCP/UDP connections; classifies exposure as `LOOPBACK`, `LOCAL_NETWORK`, or `ALL_INTERFACES`; falls back to empty list on `AccessDenied`
 - `CorrelationService` — links socket observations to owning process by PID
-- `FindingEngine` with three initial signals: `all_interface_listener`, `local_network_listener`, `suspicious_location`, `executable_missing`
+- `FindingEngine` with signals: `all_interface_listener`, `local_network_listener`, `suspicious_location`, `executable_missing`
 - `QuickScanService` — orchestrates collection, correlation, finding evaluation; returns `ScanResult`
 - `sentinel scan` / `sentinel scan quick` — human-readable Rich output
 - `sentinel scan --json` — machine-readable JSON (no ANSI codes)
@@ -82,18 +102,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 **Phase 3 — Interactive TUI**
 - Textual-based TUI launched by `sentinel` or `sentinel watch`
-- **Overview screen**: summary counts (Processes / Ports / Connections / Attention), needs-attention panel, live activity log
-- **Apps screen**: sortable DataTable of processes; per-row detail panel (path, user, PPID, ports, command)
-- **Network screen**: listeners table + connections table with colour-coded exposure
-- **Findings screen**: findings DataTable; expandable reason detail panel
+- **Overview screen**: summary counts, needs-attention panel, live activity log
+- **Apps screen**: sortable process table with per-process detail panel
+- **Network screen**: listeners + connections tables with colour-coded exposure
+- **Findings screen**: findings list with expandable reason detail
 - **Help screen**: full keyboard reference
 - Keyboard bindings: `s` rescan, `p` pause, `1–4` tab jump, `?` help, `q` quit
 - Auto-refresh every 10 seconds; manual rescan with `s`
 
 ### Known limitations
-- macOS SIP prevents `psutil.net_connections()` without elevated privileges; ports and connections show partial data for system processes
+- macOS SIP prevents `psutil.net_connections()` without elevated privileges; partial data for system processes
 - Very short-lived processes (< poll interval) may not be detected
-- Deep scan, YARA-X, browser extension, baselines, and classification are planned for later phases
 
-[Unreleased]: https://github.com/EyuelAbebe/sentinel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/EyuelAbebe/sentinel/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/EyuelAbebe/sentinel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/EyuelAbebe/sentinel/releases/tag/v0.1.0
