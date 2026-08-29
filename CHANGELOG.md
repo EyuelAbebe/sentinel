@@ -22,6 +22,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 **Developer tooling**
 - `.claude/commands/` — project slash commands: `/project:update-changelog`, `/project:start-phase`, `/project:create-pr`
+- `make smoke` — pre-PR local check: lint + tests + `sentinel scan` (functional verify)
+- `make scan` — quick one-shot scan without launching TUI
+- `make help` — lists all available targets with descriptions
+- Makefile uses `.venv/.installed` marker file — `make run`/`make scan`/`make smoke` only reinstall when `pyproject.toml` or `poetry.lock` change; avoids reinstalling 45 packages on every invocation
+- `make install` now calls `poetry env remove --all` before reinstalling — clears stale venv cache from path changes
 
 ### Planned
 - Phase 4b: `LiveMonitorService` — poll, diff, persist events, emit via EventBus

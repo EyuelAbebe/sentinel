@@ -1,9 +1,12 @@
 .PHONY: help install lint typecheck test run scan smoke fmt clean bump-patch bump-minor bump-major
 
+# Marker file — updated by `make install`. Make uses it to skip reinstall when nothing changed.
+INSTALLED_MARKER := .venv/.installed
+
 help:
 	@echo ""
 	@echo "  Setup"
-	@echo "    make install      Install all dependencies (run once after clone)"
+	@echo "    make install      Install all dependencies (run once after clone or after pulling)"
 	@echo ""
 	@echo "  Daily use"
 	@echo "    make run          Launch the interactive TUI"
@@ -20,17 +23,21 @@ help:
 	@echo "    make bump-patch / bump-minor / bump-major"
 	@echo ""
 
-install:
+$(INSTALLED_MARKER): pyproject.toml poetry.lock
 	poetry config virtualenvs.in-project true
+	poetry env remove --all 2>/dev/null || true
 	poetry install --all-extras
+	@touch $(INSTALLED_MARKER)
 
-run:
+install: $(INSTALLED_MARKER)
+
+run: $(INSTALLED_MARKER)
 	poetry run sentinel
 
-scan:
+scan: $(INSTALLED_MARKER)
 	poetry run sentinel scan
 
-smoke:
+smoke: $(INSTALLED_MARKER)
 	@echo "==> lint"
 	poetry run ruff check src/ tests/
 	poetry run ruff format --check src/ tests/
