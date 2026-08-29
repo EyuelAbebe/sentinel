@@ -9,7 +9,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+**Phase 4a — Storage Foundation**
+- `src/sentinel/storage/` module: SQLite-backed persistence via SQLAlchemy 2 (WAL mode)
+- `EventRecord` ORM model — stores domain events by type, instance ID, timestamp, and JSON payload
+- `FindingRecord` ORM model — stores findings with severity, subject, reasons list, and status
+- `EventRepository` — `write()`, `write_many()`, `query_recent()` (filterable by type/time), `count()`
+- `FindingRepository` — `write()` (idempotent by `finding_id`), `write_many()`, `query_active()`, `query_all()`, `count_active()`
+- `init_db()` — creates all tables from ORM metadata
+- 13 unit tests in `tests/unit/test_storage.py` using in-memory SQLite
+
+**Developer tooling**
+- `.claude/commands/` — project slash commands: `/project:update-changelog`, `/project:start-phase`, `/project:create-pr`
+
 ### Planned
+- Phase 4b: `LiveMonitorService` — poll, diff, persist events, emit via EventBus
+- Phase 4c: TUI live event feed
 - Phase 4: Live monitoring and persistent event history (SQLite + Alembic)
 - Phase 5: Identity and classification engine (domain → org → category)
 - Phase 6: Baselines and explainable findings
