@@ -131,6 +131,35 @@ def doctor() -> None:
             "not installed — deep scan uses rules without YARA",
         )
 
+    # zeek (optional)
+    import shutil as _shutil2
+
+    zeek_bin = _shutil2.which("zeek") or _shutil2.which("bro")
+    zeek_log = "/opt/zeek/logs/current/conn.log"
+    import os as _os
+
+    zeek_log_exists = _os.path.exists(zeek_log)
+    zeek_detail = (
+        f"binary: {zeek_bin}, log: {zeek_log}" if zeek_bin or zeek_log_exists else "not found"
+    )
+    _add_row(table, "zeek (optional)", zeek_bin is not None or zeek_log_exists, zeek_detail)
+
+    # suricata (optional)
+    suricata_bin = _shutil2.which("suricata")
+    suricata_log = "/var/log/suricata/eve.json"
+    suricata_log_exists = _os.path.exists(suricata_log)
+    suricata_detail = (
+        f"binary: {suricata_bin}, log: {suricata_log}"
+        if suricata_bin or suricata_log_exists
+        else "not found"
+    )
+    _add_row(
+        table,
+        "suricata (optional)",
+        suricata_bin is not None or suricata_log_exists,
+        suricata_detail,
+    )
+
     # platform
     _add_row(table, "Platform", True, platform.platform())
 
