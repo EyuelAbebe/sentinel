@@ -1,0 +1,59 @@
+[tool.poetry]
+name = "sentinel"
+version = "0.1.0"
+description = "Local security and privacy monitoring tool"
+authors = ["Eyuel Abebe <eyueld@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+keywords = ["security", "privacy", "monitoring", "processes", "network"]
+packages = [{include = "sentinel", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+typer = ">=0.12"
+rich = ">=13"
+textual = ">=0.80"
+psutil = ">=6"
+pydantic = ">=2"
+pydantic-settings = ">=2"
+sqlalchemy = ">=2"
+alembic = ">=1.13"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8"
+pytest-asyncio = ">=0.23"
+ruff = ">=0.5"
+mypy = ">=1.10"
+types-psutil = "*"
+pre-commit = ">=3"
+
+[tool.poetry.scripts]
+sentinel = "sentinel.cli.main:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# ── tool config ────────────────────────────────────────────────────────────
+
+[tool.ruff]
+src = ["src"]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["sentinel"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/sentinel"]
