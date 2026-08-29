@@ -1,4 +1,4 @@
-name: CI
+name: CI — Lint, Test & Smoke
 
 on:
   push:
@@ -8,8 +8,9 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test (Python ${{ matrix.python-version }})
+  # ── Quality gate ────────────────────────────────────────────────────────────
+  quality:
+    name: Lint & type check (Python ${{ matrix.python-version }})
     runs-on: macos-latest
     strategy:
       matrix:
@@ -18,20 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Cache virtual environment
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
@@ -39,14 +37,95 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction --all-extras
 
-      - name: Lint
+      - name: Lint (ruff check)
         run: poetry run ruff check src/ tests/
 
-      - name: Format check
+      - name: Format (ruff format --check)
         run: poetry run ruff format --check src/ tests/
 
-      - name: Type check
+      - name: Type check (mypy)
         run: poetry run mypy
 
-      - name: Tests
+  # ── Unit + integration tests ────────────────────────────────────────────────
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --all-extras
+
+      - name: Run tests
         run: poetry run pytest --tb=short -q
+
+  # ── End-to-end smoke tests ──────────────────────────────────────────────────
+  smoke:
+    name: Smoke test (installed wheel)
+    runs-on: macos-latest
+    needs: [quality, test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --all-extras
+
+      - name: Build wheel
+        run: poetry build --format wheel
+
+      - name: Install from wheel
+        run: pip install dist/sentinel-*.whl "textual>=0.80"
+
+      - name: sentinel version
+        run: |
+          sentinel version
+          EXPECTED=$(poetry version -s)
+          sentinel version | grep -q "$EXPECTED"
+
+      - name: sentinel doctor
+        run: sentinel doctor
+
+      - name: sentinel scan (human output)
+        run: sentinel scan
+
+      - name: sentinel scan --json (valid JSON)
+        run: sentinel scan --json 2>/dev/null | python3 -m json.tool > /dev/null
+
+      - name: sentinel processes
+        run: sentinel processes
+
+      - name: sentinel ports
+        run: sentinel ports
+
+      - name: sentinel network
+        run: sentinel network
