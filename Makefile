@@ -1,7 +1,44 @@
-.PHONY: install lint typecheck test run clean bump-patch bump-minor bump-major
+.PHONY: help install lint typecheck test run scan smoke fmt clean bump-patch bump-minor bump-major
+
+help:
+	@echo ""
+	@echo "  Setup"
+	@echo "    make install      Install all dependencies (run once after clone)"
+	@echo ""
+	@echo "  Daily use"
+	@echo "    make run          Launch the interactive TUI"
+	@echo "    make scan         Run a quick one-shot security scan"
+	@echo "    make test         Run the test suite"
+	@echo "    make fmt          Auto-fix formatting and lint"
+	@echo "    make lint         Check code style (read-only)"
+	@echo "    make typecheck    Run mypy strict type checking"
+	@echo ""
+	@echo "  Pre-PR"
+	@echo "    make smoke        Full local check: lint + test + sentinel scan"
+	@echo ""
+	@echo "  Release"
+	@echo "    make bump-patch / bump-minor / bump-major"
+	@echo ""
 
 install:
-	poetry install
+	poetry config virtualenvs.in-project true
+	poetry install --all-extras
+
+run:
+	poetry run sentinel
+
+scan:
+	poetry run sentinel scan
+
+smoke:
+	@echo "==> lint"
+	poetry run ruff check src/ tests/
+	poetry run ruff format --check src/ tests/
+	@echo "==> tests"
+	poetry run pytest tests/ -q
+	@echo "==> sentinel scan"
+	poetry run sentinel scan
+	@echo "==> all checks passed"
 
 lint:
 	poetry run ruff check src/ tests/
@@ -17,8 +54,10 @@ typecheck:
 test:
 	poetry run pytest tests/ -v
 
-run:
-	poetry run sentinel
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
+	find . -name "*.pyc" -delete
+	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov dist .venv
 
 bump-patch:
 	poetry version patch
@@ -28,8 +67,3 @@ bump-minor:
 
 bump-major:
 	poetry version major
-
-clean:
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
-	find . -name "*.pyc" -delete
-	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov dist
