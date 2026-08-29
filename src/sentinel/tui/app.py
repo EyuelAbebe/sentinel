@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
+import contextlib
+from datetime import UTC, datetime
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -40,7 +40,6 @@ class SentinelApp(App[None]):
 
     def __init__(self) -> None:
         super().__init__()
-        cfg = get_config()
         self._svc = QuickScanService(
             process_collector=PsutilProcessCollector(),
             network_collector=PsutilNetworkCollector(),
@@ -80,31 +79,23 @@ class SentinelApp(App[None]):
             self.notify(f"Scan error: {exc}", severity="error")
 
     def _push_result(self, result: ScanResult) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#overview", OverviewScreen).update_result(result)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#apps", AppsScreen).update_result(result)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#network", NetworkScreen).update_result(result)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#findings", FindingsScreen).update_result(result)
-        except Exception:
-            pass
 
         if result.findings:
-            ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-            try:
+            ts = datetime.now(UTC).strftime("%H:%M:%S")
+            with contextlib.suppress(Exception):
                 overview = self.query_one("#overview", OverviewScreen)
                 for f in result.findings:
-                    overview.log_activity(f"{ts} [bold red]![/bold red] {f.title}  {f.severity.upper()}")
-            except Exception:
-                pass
+                    overview.log_activity(
+                        f"{ts} [bold red]![/bold red] {f.title}  {f.severity.upper()}"
+                    )
 
     def action_rescan(self) -> None:
         self.run_worker(self._do_scan(), exclusive=False)

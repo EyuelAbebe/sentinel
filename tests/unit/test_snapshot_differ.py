@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sentinel.application.snapshot_differ import SnapshotDiffer
 from sentinel.domain.enums import EventType, ExposureLevel, Protocol, SocketState
@@ -15,7 +15,7 @@ from sentinel.domain.models import (
 def _proc(pid: int, start_time: float = 1000.0) -> ProcessObservation:
     return ProcessObservation(
         identity=ProcessIdentity(pid=pid, name=f"proc-{pid}", start_time=start_time),
-        observed_at=datetime.now(timezone.utc),
+        observed_at=datetime.now(UTC),
     )
 
 

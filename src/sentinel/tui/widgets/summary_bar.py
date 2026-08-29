@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import contextlib
+
 from textual.app import ComposeResult
+from textual.containers import Horizontal
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Label
-from textual.containers import Horizontal
 
 
 class StatBox(Widget):
@@ -41,10 +43,8 @@ class StatBox(Widget):
         yield Label(str(self.value), classes="value", id="stat-value")
 
     def watch_value(self, new_value: int) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#stat-value", Label).update(str(new_value))
-        except Exception:
-            pass
 
 
 class SummaryBar(Horizontal):

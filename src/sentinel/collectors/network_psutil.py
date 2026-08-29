@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psutil
 
@@ -29,7 +29,7 @@ _STATE_MAP: dict[str, SocketState] = {
 
 class PsutilNetworkCollector:
     async def snapshot(self) -> list[SocketObservation]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         observations: list[SocketObservation] = []
 
         try:

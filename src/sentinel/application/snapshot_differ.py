@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sentinel.domain.enums import EventType
 from sentinel.domain.events import Event
@@ -21,7 +21,7 @@ class SnapshotDiffer:
         curr_map = {obs.identity.instance_id: obs for obs in current}
 
         events: list[Event] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for iid, obs in curr_map.items():
             if iid not in prev_map:
@@ -65,7 +65,7 @@ class SnapshotDiffer:
         curr_map = {obs.socket_key: obs for obs in current}
 
         events: list[Event] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for key, obs in curr_map.items():
             if key not in prev_map:

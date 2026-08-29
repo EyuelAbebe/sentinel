@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC
 
 from sentinel.domain.models import ProcessObservation, SocketObservation
 
@@ -52,8 +53,9 @@ class CorrelationService:
         result = list(by_pid.values())
 
         if orphan_listeners or orphan_connections:
+            from datetime import datetime
+
             from sentinel.domain.models import ProcessIdentity
-            from datetime import datetime, timezone
 
             ghost = CorrelatedProcess(
                 observation=ProcessObservation(
@@ -62,7 +64,7 @@ class CorrelationService:
                         name="(unknown)",
                         start_time=0.0,
                     ),
-                    observed_at=datetime.now(timezone.utc),
+                    observed_at=datetime.now(UTC),
                 ),
                 listeners=orphan_listeners,
                 connections=orphan_connections,

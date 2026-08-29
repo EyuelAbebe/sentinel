@@ -4,6 +4,7 @@ NOTE: On macOS, psutil.net_connections() requires elevated privileges or specifi
 entitlements to read all connections. Tests skip automatically when access is denied.
 This is a documented platform limitation (see docs/permissions.md).
 """
+
 from __future__ import annotations
 
 import socket

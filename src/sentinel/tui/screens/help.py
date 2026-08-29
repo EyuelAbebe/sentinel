@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Static, Footer
-
+from textual.widgets import Footer, Static
 
 HELP_TEXT = """\
 [bold cyan]Keyboard Reference[/bold cyan]

@@ -46,8 +46,7 @@ class ProcessIdentity(BaseModel):
             return False
         p = self.executable_path.lower()
         return any(
-            segment in p
-            for segment in ["/downloads/", "/tmp/", "/var/tmp/", "/private/tmp/"]
+            segment in p for segment in ["/downloads/", "/tmp/", "/var/tmp/", "/private/tmp/"]
         )
 
 

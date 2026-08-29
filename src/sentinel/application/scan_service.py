@@ -7,7 +7,6 @@ from sentinel.application.correlation import CorrelatedProcess, CorrelationServi
 from sentinel.application.finding_engine import FindingEngine
 from sentinel.collectors.base import NetworkCollector, ProcessCollector
 from sentinel.domain.findings import Finding
-from sentinel.domain.models import SocketObservation
 from sentinel.log import get_logger
 
 logger = get_logger("scan_service")

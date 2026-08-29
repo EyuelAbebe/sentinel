@@ -3,13 +3,12 @@ from __future__ import annotations
 import asyncio
 import importlib.metadata
 import sys
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 from sentinel.config import get_config
 from sentinel.log import configure_logging
@@ -72,6 +71,7 @@ def doctor() -> None:
     # rich
     try:
         import importlib.metadata as _meta
+
         rich_ver = _meta.version("rich")
         _add_row(table, "rich", True, rich_ver)
     except Exception:
@@ -80,6 +80,7 @@ def doctor() -> None:
     # textual
     try:
         import importlib.metadata as _meta2
+
         textual_ver = _meta2.version("textual")
         _add_row(table, "textual", True, textual_ver)
     except Exception:
@@ -112,7 +113,8 @@ def _add_row(table: Table, name: str, ok: bool, detail: str) -> None:
 
 # ── scan subcommands ────────────────────────────────────────────────────────
 
-class ScanMode(str, Enum):
+
+class ScanMode(StrEnum):
     quick = "quick"
     deep = "deep"
 
@@ -142,9 +144,9 @@ def scan_deep() -> None:
 
 
 def _run_scan(output_json: bool = False) -> None:
-    from sentinel.collectors.process_psutil import PsutilProcessCollector
-    from sentinel.collectors.network_psutil import PsutilNetworkCollector
     from sentinel.application.scan_service import QuickScanService
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
 
     svc = QuickScanService(
         process_collector=PsutilProcessCollector(),
@@ -165,13 +167,14 @@ def _run_scan(output_json: bool = False) -> None:
 
 # ── standalone subcommands ─────────────────────────────────────────────────
 
+
 @app.command()
 def processes() -> None:
     """List running processes."""
-    from sentinel.collectors.process_psutil import PsutilProcessCollector
-    from sentinel.collectors.network_psutil import PsutilNetworkCollector
     from sentinel.application.correlation import CorrelationService
     from sentinel.cli.renderers.rich_renderer import render_processes_table
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
 
     proc_obs = asyncio.run(PsutilProcessCollector().snapshot())
     sock_obs = asyncio.run(PsutilNetworkCollector().snapshot())
@@ -182,10 +185,10 @@ def processes() -> None:
 @app.command()
 def ports() -> None:
     """List listening ports."""
-    from sentinel.collectors.process_psutil import PsutilProcessCollector
-    from sentinel.collectors.network_psutil import PsutilNetworkCollector
     from sentinel.application.correlation import CorrelationService
     from sentinel.cli.renderers.rich_renderer import render_ports_table
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
 
     proc_obs = asyncio.run(PsutilProcessCollector().snapshot())
     sock_obs = asyncio.run(PsutilNetworkCollector().snapshot())
@@ -196,10 +199,10 @@ def ports() -> None:
 @app.command()
 def network() -> None:
     """List active connections."""
-    from sentinel.collectors.process_psutil import PsutilProcessCollector
-    from sentinel.collectors.network_psutil import PsutilNetworkCollector
     from sentinel.application.correlation import CorrelationService
     from sentinel.cli.renderers.rich_renderer import render_network_table
+    from sentinel.collectors.network_psutil import PsutilNetworkCollector
+    from sentinel.collectors.process_psutil import PsutilProcessCollector
 
     proc_obs = asyncio.run(PsutilProcessCollector().snapshot())
     sock_obs = asyncio.run(PsutilNetworkCollector().snapshot())
@@ -221,6 +224,6 @@ def _launch_tui() -> None:
             "[bold red]The interactive TUI requires the [cyan]textual[/cyan] package.[/bold red]\n"
             "Install it with:  [bold]pip install 'sentinel[tui]'[/bold]"
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     SentinelApp().run()

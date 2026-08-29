@@ -3,7 +3,6 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Static
-from textual.containers import VerticalScroll
 
 from sentinel.application.correlation import CorrelatedProcess
 from sentinel.application.scan_service import ScanResult
@@ -43,7 +42,7 @@ class AppsScreen(Screen[None]):
             if cp.pid == 0:
                 continue
             identity = cp.observation.identity
-            ports = ", ".join(f":{l.local_endpoint.port}" for l in cp.listeners)
+            ports = ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
             table.add_row(
                 str(identity.pid),
                 identity.name,
@@ -68,7 +67,7 @@ class AppsScreen(Screen[None]):
             f"PPID    {identity.parent_pid or '—'}",
         ]
         if cp.listeners:
-            ports = ", ".join(f":{l.local_endpoint.port}" for l in cp.listeners)
+            ports = ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
             lines.append(f"Ports   {ports}")
         if identity.command_line:
             cmd = " ".join(identity.command_line)[:120]

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 
+from sentinel.domain.enums import EventType, ExposureLevel, Protocol
 from sentinel.domain.events import Event
-from sentinel.domain.enums import EventType
-from sentinel.domain.models import ProcessIdentity, SocketObservation, NetworkEndpoint
-from sentinel.domain.enums import ExposureLevel, Protocol, SocketState
+from sentinel.domain.models import NetworkEndpoint, ProcessIdentity, SocketObservation
 
 
 def test_process_instance_id_stable_across_instantiations() -> None:
@@ -43,6 +42,10 @@ def test_event_versioned_serialization() -> None:
 def test_socket_key_uniqueness() -> None:
     ep_a = NetworkEndpoint(address="127.0.0.1", port=8080, protocol=Protocol.TCP)
     ep_b = NetworkEndpoint(address="127.0.0.1", port=9090, protocol=Protocol.TCP)
-    s_a = SocketObservation(local_endpoint=ep_a, listening=True, exposure=ExposureLevel.LOOPBACK, pid=100)
-    s_b = SocketObservation(local_endpoint=ep_b, listening=True, exposure=ExposureLevel.LOOPBACK, pid=100)
+    s_a = SocketObservation(
+        local_endpoint=ep_a, listening=True, exposure=ExposureLevel.LOOPBACK, pid=100
+    )
+    s_b = SocketObservation(
+        local_endpoint=ep_b, listening=True, exposure=ExposureLevel.LOOPBACK, pid=100
+    )
     assert s_a.socket_key != s_b.socket_key

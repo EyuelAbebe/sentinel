@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
+from textual.containers import VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Static, RichLog, Footer
-from textual.containers import Vertical, VerticalScroll
+from textual.widgets import Footer, RichLog, Static
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity

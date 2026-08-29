@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psutil
 
@@ -24,7 +24,7 @@ _ATTRS = [
 
 class PsutilProcessCollector:
     async def snapshot(self) -> list[ProcessObservation]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         observations: list[ProcessObservation] = []
 
         for proc in psutil.process_iter(_ATTRS):

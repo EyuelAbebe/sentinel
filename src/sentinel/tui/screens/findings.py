@@ -3,7 +3,6 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Static
-from textual.containers import VerticalScroll
 
 from sentinel.application.scan_service import ScanResult
 from sentinel.domain.enums import Severity

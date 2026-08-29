@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from typing import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
-from sentinel.domain.events import Event
 from sentinel.domain.enums import EventType
+from sentinel.domain.events import Event
 
 Handler = Callable[[Event], Awaitable[None]]
 

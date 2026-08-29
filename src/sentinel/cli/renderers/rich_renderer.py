@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
 from rich.text import Text
 
 from sentinel.application.correlation import CorrelatedProcess
@@ -93,9 +93,11 @@ def render_processes_table(correlated: list[CorrelatedProcess]) -> None:
         if cp.pid == 0:
             continue
         identity = cp.observation.identity
-        ports = ", ".join(
-            f":{l.local_endpoint.port}" for l in cp.listeners
-        ) if cp.listeners else ""
+        ports = (
+            ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
+            if cp.listeners
+            else ""
+        )
         table.add_row(
             str(identity.pid),
             identity.name,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sentinel.application.correlation import CorrelatedProcess
 from sentinel.application.finding_engine import FindingEngine
@@ -24,7 +24,7 @@ def _cp(name: str, exe: str | None = None) -> CorrelatedProcess:
                 start_time=1000.0,
                 executable_path=exe,
             ),
-            observed_at=datetime.now(timezone.utc),
+            observed_at=datetime.now(UTC),
         )
     )
 
