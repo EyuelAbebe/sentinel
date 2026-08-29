@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Static
@@ -31,12 +33,12 @@ class FindingsScreen(Screen[None]):
     }
     """
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._findings: list[Finding] = []
 
     def compose(self) -> ComposeResult:
-        table = DataTable(id="findings-table", cursor_type="row")
+        table: DataTable[str] = DataTable(id="findings-table", cursor_type="row")
         table.add_columns("Severity", "Title", "Signals")
         yield table
         yield Static("[dim]No finding selected[/dim]", id="finding-detail")

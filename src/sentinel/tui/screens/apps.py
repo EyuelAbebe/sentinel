@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Static
@@ -23,12 +25,12 @@ class AppsScreen(Screen[None]):
     }
     """
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._correlated: list[CorrelatedProcess] = []
 
     def compose(self) -> ComposeResult:
-        table = DataTable(id="process-table", cursor_type="row")
+        table: DataTable[str] = DataTable(id="process-table", cursor_type="row")
         table.add_columns("PID", "Name", "User", "Ports", "Path")
         yield table
         yield Static("[dim]Select a process to inspect[/dim]", id="detail-panel")

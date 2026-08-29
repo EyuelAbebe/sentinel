@@ -32,7 +32,7 @@ class ProcessIdentity(BaseModel):
     code_signature_status: str | None = None
     content_hash: str | None = None
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def instance_id(self) -> str:
         return _make_instance_id(self.pid, self.start_time)

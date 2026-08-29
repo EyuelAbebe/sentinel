@@ -29,7 +29,7 @@ class PsutilProcessCollector:
 
         for proc in psutil.process_iter(_ATTRS):
             try:
-                info = proc.info  # type: ignore[attr-defined]
+                info = proc.info
                 exe: str | None = info.get("exe") or None
                 observations.append(
                     ProcessObservation(

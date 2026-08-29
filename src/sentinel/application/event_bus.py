@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from sentinel.domain.enums import EventType
 from sentinel.domain.events import Event
 
-Handler = Callable[[Event], Awaitable[None]]
+Handler = Callable[[Event], Coroutine[Any, Any, None]]
 
 
 class EventBus:

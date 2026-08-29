@@ -30,11 +30,11 @@ class NetworkScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         yield Label("LISTENING PORTS", classes="section-label")
-        listeners = DataTable(id="listeners-table", cursor_type="row")
+        listeners: DataTable[str] = DataTable(id="listeners-table", cursor_type="row")
         listeners.add_columns("Port", "Proto", "Process", "Exposure")
         yield listeners
         yield Label("CONNECTIONS", classes="section-label")
-        conns = DataTable(id="connections-table", cursor_type="row")
+        conns: DataTable[str] = DataTable(id="connections-table", cursor_type="row")
         conns.add_columns("Process", "Local", "Remote", "State")
         yield conns
         yield Footer()

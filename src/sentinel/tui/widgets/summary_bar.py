@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal
@@ -33,7 +34,7 @@ class StatBox(Widget):
     value: reactive[int] = reactive(0)
     title_text: reactive[str] = reactive("")
 
-    def __init__(self, title: str, value: int = 0, **kwargs: object) -> None:
+    def __init__(self, title: str, value: int = 0, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.title_text = title
         self.value = value
@@ -56,7 +57,7 @@ class SummaryBar(Horizontal):
     }
     """
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._processes = StatBox("Processes", id="stat-processes")
         self._ports = StatBox("Ports", id="stat-ports")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 from datetime import UTC, datetime
+from typing import Any
 
 import psutil
 
@@ -50,7 +51,7 @@ class PsutilNetworkCollector:
 
 
 def _connection_to_observation(
-    conn: psutil.sconn,
+    conn: Any,
     now: datetime,
 ) -> SocketObservation | None:
     laddr = conn.laddr

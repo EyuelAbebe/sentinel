@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.screen import Screen
@@ -47,7 +49,7 @@ class OverviewScreen(Screen[None]):
     }
     """
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._last_result: ScanResult | None = None
 
