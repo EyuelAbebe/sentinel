@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sentinel.application.correlation import CorrelatedProcess
-from sentinel.domain.enums import ExposureLevel, Severity
+from sentinel.domain.enums import ExposureLevel, PrivacyCategory, Severity
 from sentinel.domain.findings import Finding, FindingReason
 
 
@@ -68,6 +68,17 @@ class FindingEngine:
                     )
                 )
 
+        for conn in cp.connections:
+            ep = conn.remote_endpoint
+            if ep and ep.category in (PrivacyCategory.TRACKING, PrivacyCategory.ADVERTISING):
+                label = ep.organization or ep.hostname or ep.address
+                reasons.append(
+                    FindingReason(
+                        signal="known_tracker_connection",
+                        description=f"Connected to {label} ({ep.category})",
+                    )
+                )
+
         return reasons
 
     def _derive_severity(self, reasons: list[FindingReason]) -> Severity:
@@ -80,4 +91,6 @@ class FindingEngine:
             return Severity.MEDIUM
         if "suspicious_location" in signals:
             return Severity.MEDIUM
+        if "known_tracker_connection" in signals:
+            return Severity.LOW
         return Severity.LOW
