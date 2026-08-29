@@ -1,5 +1,17 @@
 # Sentinel — Claude Code Context
 
+## Custom slash commands
+
+Project-specific commands live in `.claude/commands/`:
+
+| Command | What it does |
+|---|---|
+| `/project:update-changelog` | Update CHANGELOG.md with recent work |
+| `/project:start-phase` | Begin a new development phase (issue → branch → implement) |
+| `/project:create-pr` | Create a PR following project conventions |
+
+---
+
 ## What this project is
 
 A local security and privacy monitoring tool for macOS. It watches running processes,
@@ -155,7 +167,7 @@ Full architecture details: `docs/architecture.md`
 | 1 | Domain models, events, differ, event bus | ✅ Done |
 | 2 | psutil collectors, correlation, finding engine, scan service | ✅ Done |
 | 3 | Textual TUI (Overview / Apps / Network / Findings / Help) | ✅ Done |
-| 4 | Live monitoring + SQLite persistence | **Next** |
+| 4 | Live monitoring + SQLite persistence | **In Progress** |
 | 5 | Identity / classification engine (domain → org → category) | Planned |
 | 6 | Baselines and explainable findings | Planned |
 | 7 | Deep scan + YARA-X | Planned |
