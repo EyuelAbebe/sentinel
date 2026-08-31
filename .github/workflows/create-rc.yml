@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   create-rc:
@@ -76,16 +77,49 @@ jobs:
           fi
           echo "RC_TAG=v${VERSION}-rc.${N}" >> "$GITHUB_OUTPUT"
 
-      - name: Commit version bump
+      - name: Create version-bump branch and PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          BRANCH="chore/bump-version-${{ steps.ver.outputs.VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add pyproject.toml poetry.lock
           git commit -m "bump version to ${{ steps.ver.outputs.VERSION }}"
-          git push origin main
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create \
+            --title "chore: bump version to ${{ steps.ver.outputs.VERSION }}" \
+            --body "Automated version bump for ${{ steps.rc.outputs.RC_TAG }}." \
+            --base main \
+            --head "$BRANCH")
+          echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_OUTPUT"
+        id: bump_pr
+
+      - name: Wait for PR checks and merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_URL="${{ steps.bump_pr.outputs.PR_URL }}"
+          PR_NUM=$(echo "$PR_URL" | grep -o '[0-9]*$')
+          echo "Waiting for checks on PR #$PR_NUM…"
+          for i in $(seq 1 20); do
+            sleep 30
+            STATUS=$(gh pr view "$PR_NUM" --json statusCheckRollup \
+              --jq '[.statusCheckRollup[].status] | unique | join(",")' 2>/dev/null || echo "pending")
+            echo "  check $i: $STATUS"
+            if echo "$STATUS" | grep -q "COMPLETED\|SUCCESS\|pass" && ! echo "$STATUS" | grep -q "QUEUED\|IN_PROGRESS\|pending"; then
+              break
+            fi
+          done
+          gh pr merge "$PR_NUM" --squash --delete-branch
 
       - name: Create and push RC tag
         run: |
+          git fetch origin main
+          git checkout main
+          git pull origin main
           git tag -a "${{ steps.rc.outputs.RC_TAG }}" \
             -m "${{ steps.rc.outputs.RC_TAG }} — release candidate"
           git push origin "${{ steps.rc.outputs.RC_TAG }}"
