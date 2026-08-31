@@ -9,6 +9,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+**Collapsible process groups in TUI and browser dashboard**
+- Apps screen: connections grouped under each process row; `→` expands, `←` collapses, `Enter` toggles; child rows show remote address, local endpoint, connection type, and socket state; detail panel shows process summary on header rows and individual connection detail on child rows
+- Network screen: active connections grouped by process with same `→`/`←`/`Enter` expand-collapse; cursor position restored after re-render
+- Browser Processes panel: click process row (or `▶`/`▼` toggle) to expand/collapse connections; child rows show local→remote, protocol, state
+- Browser Network Connections panel: connections grouped by process name with click-to-expand; child rows show per-connection details
+
 ---
 
 ## [0.7.0] — 2026-08-31
