@@ -11,6 +11,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+**Background service management via CLI**
+- `sentinel service install` — writes launchd plist to `~/Library/LaunchAgents/`, starts the API server at login automatically
+- `sentinel service uninstall` — stops the service and removes the plist
+- `sentinel service start` / `stop` / `restart` — control the running agent without reinstalling
+- `sentinel service status` — shows loaded state, PID, API health check, and log path
+- `packaging/install.sh` and `packaging/uninstall.sh` now delegate to the CLI when `sentinel` is on PATH (fall back to raw launchctl otherwise)
+- `sentinel doctor` updated to reference `sentinel service install` instead of `bash packaging/install.sh`
+
 **Collapsible process groups in TUI and browser dashboard**
 - Apps screen: connections grouped under each process row; `→` expands, `←` collapses, `Enter` toggles; child rows show remote address, local endpoint, connection type, and socket state; detail panel shows process summary on header rows and individual connection detail on child rows
 - Network screen: active connections grouped by process with same `→`/`←`/`Enter` expand-collapse; cursor position restored after re-render
