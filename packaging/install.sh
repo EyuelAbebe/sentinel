@@ -31,6 +31,13 @@ if [[ -z "${SENTINEL_BIN}" ]]; then
     exit 1
 fi
 
+# ── prefer the Python-native CLI when available ───────────────────────────────
+if command -v sentinel &>/dev/null; then
+    echo "Delegating to: sentinel service install"
+    sentinel service install
+    exit $?
+fi
+
 # ── prepare directories ───────────────────────────────────────────────────────
 mkdir -p "${AGENTS_DIR}" "${LOG_DIR}"
 

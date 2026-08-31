@@ -10,6 +10,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from sentinel.cli.service import service_app
 from sentinel.config import get_config
 from sentinel.log import configure_logging
 
@@ -21,8 +22,10 @@ app = typer.Typer(
 )
 scan_app = typer.Typer(help="Run security scans.")
 baseline_app = typer.Typer(help="Manage baseline expectations.")
+
 app.add_typer(scan_app, name="scan")
 app.add_typer(baseline_app, name="baseline")
+app.add_typer(service_app, name="service")
 
 console = Console()
 err_console = Console(stderr=True)
@@ -173,7 +176,7 @@ def doctor() -> None:
         )
         launchd_loaded = result.returncode == 0
         launchd_detail = (
-            "loaded" if launchd_loaded else "not loaded — run: bash packaging/install.sh"
+            "loaded" if launchd_loaded else "not loaded — run: sentinel service install"
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         launchd_loaded = False

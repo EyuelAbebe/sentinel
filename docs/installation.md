@@ -68,9 +68,9 @@ sentinel version
 
 ---
 
-## Run automatically on login (launchd)
+## Run automatically on login (background service)
 
-Sentinel ships a launchd agent that starts the local API server (`sentinel serve`) at login.
+Sentinel ships a launchd agent that starts the local API server (`sentinel serve`) automatically when you log in. The API powers the browser dashboard at `http://127.0.0.1:7173`.
 
 ### Quick install
 
@@ -78,37 +78,58 @@ Requires the `api` extra:
 
 ```bash
 poetry install --extras api   # or: pip install "sentinel[api]"
-bash packaging/install.sh
+sentinel service install
 ```
 
-The script:
-1. Finds the `sentinel` binary on your PATH
-2. Writes a configured plist to `~/Library/LaunchAgents/com.sentinel.agent.plist`
-3. Loads the agent via `launchctl`
-4. Prints the log path and health URL
-
-Verify it is running:
+That's it. The service is now running. Verify:
 
 ```bash
+sentinel service status
+```
+
+### Service management commands
+
+| Command | What it does |
+|---|---|
+| `sentinel service install` | Write plist, register with launchd, start at login |
+| `sentinel service start` | Start the service now (must be installed first) |
+| `sentinel service stop` | Stop the running service |
+| `sentinel service restart` | Stop then start |
+| `sentinel service status` | Show running state, PID, and API health |
+| `sentinel service uninstall` | Stop service and remove the plist |
+
+```bash
+sentinel service status    # loaded? running? API reachable?
+sentinel service stop      # stop without uninstalling
+sentinel service start     # start again
+sentinel service restart   # restart (e.g. after a config change)
+sentinel service uninstall # remove from launchd entirely
+```
+
+Logs are written to `~/Library/Logs/sentinel/`:
+- `sentinel.log` — stdout (server access logs)
+- `sentinel.err.log` — stderr (errors and warnings)
+
+### Verify it is running
+
+```bash
+sentinel service status
 curl http://127.0.0.1:7173/health
-sentinel doctor   # shows "launchd agent: OK"
+sentinel doctor             # shows "launchd agent: OK"
 ```
 
-Logs are written to `~/Library/Logs/sentinel/`.
+---
 
-### Uninstall the agent
+## Manual / fallback shell scripts
+
+If `sentinel` is not on your PATH (e.g. running directly from the Poetry virtualenv), the shell scripts in `packaging/` provide the same functionality:
 
 ```bash
-bash packaging/uninstall.sh
+bash packaging/install.sh    # install and start
+bash packaging/uninstall.sh  # stop and remove
 ```
 
-### Manual plist setup
-
-Copy `packaging/com.sentinel.agent.plist`, replace the placeholder tokens (`SENTINEL_BIN`, `SENTINEL_LOG_DIR`, `SENTINEL_USER`) with your actual values, save it to `~/Library/LaunchAgents/com.sentinel.agent.plist`, and load it:
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.sentinel.agent.plist
-```
+When `sentinel` is on your PATH, these scripts automatically delegate to `sentinel service install` / `sentinel service uninstall`.
 
 ---
 
@@ -117,6 +138,10 @@ launchctl load ~/Library/LaunchAgents/com.sentinel.agent.plist
 **`sentinel: command not found`**
 
 Make sure the Poetry virtualenv is active (`source .venv/bin/activate`) or always prefix with `poetry run`.
+
+**`sentinel service install` fails with "launchctl not found"**
+
+This command requires macOS. On other platforms use `sentinel serve` directly or configure your own process supervisor.
 
 **`sentinel doctor` reports partial network access**
 
@@ -129,3 +154,7 @@ Install the `tui` extra: `poetry install` already includes it for source install
 **`ModuleNotFoundError: fastapi` or `uvicorn`**
 
 Install the `api` extra: `poetry install --extras api` or `pip install "sentinel[api]"`.
+
+**Service installed but API not reachable**
+
+Check the error log: `cat ~/Library/Logs/sentinel/sentinel.err.log`. If uvicorn is missing, run `pip install "sentinel[api]"` then `sentinel service restart`.

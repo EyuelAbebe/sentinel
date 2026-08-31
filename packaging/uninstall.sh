@@ -6,6 +6,13 @@ set -euo pipefail
 LABEL="com.sentinel.agent"
 PLIST_DST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 
+# ── prefer the Python-native CLI when available ───────────────────────────────
+if command -v sentinel &>/dev/null; then
+    echo "Delegating to: sentinel service uninstall"
+    sentinel service uninstall
+    exit $?
+fi
+
 if [[ ! -f "${PLIST_DST}" ]]; then
     echo "Plist not found at ${PLIST_DST} — nothing to uninstall."
     exit 0
