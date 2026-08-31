@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 from datetime import UTC, datetime
 from typing import Any
@@ -36,8 +37,11 @@ class PsutilNetworkCollector:
         try:
             conns = psutil.net_connections(kind="inet")
         except psutil.AccessDenied:
-            logger.warning("Access denied reading network connections — partial data")
-            return []
+            logger.warning("Global net_connections denied — falling back to per-process")
+            conns = _collect_per_process()
+        except Exception as exc:
+            logger.warning("net_connections failed: %s", exc)
+            conns = _collect_per_process()
 
         for conn in conns:
             try:
@@ -48,6 +52,16 @@ class PsutilNetworkCollector:
                 logger.debug("Skipping connection: %s", exc)
 
         return observations
+
+
+def _collect_per_process() -> list[Any]:
+    """Collect connections per-process — works for the current user without root."""
+    conns: list[Any] = []
+    for proc in psutil.process_iter():
+        with contextlib.suppress(psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess):
+            proc_conns = proc.net_connections(kind="inet")
+            conns.extend(proc_conns)
+    return conns
 
 
 def _connection_to_observation(

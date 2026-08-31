@@ -1,506 +1,878 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="matrix">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sentinel — Live Dashboard</title>
+<title>SENTINEL — Local Security Monitor</title>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22273a;
-    --border: #2e3347;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --accent: #38bdf8;
-    --green: #22c55e;
-    --yellow: #f59e0b;
-    --orange: #f97316;
-    --red: #ef4444;
-    --red-bg: rgba(239,68,68,0.08);
-    --green-bg: rgba(34,197,94,0.08);
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f1f5f9;
-      --surface: #ffffff;
-      --surface2: #f8fafc;
-      --border: #e2e8f0;
-      --text: #0f172a;
-      --muted: #64748b;
-    }
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    background: var(--bg);
-    color: var(--text);
-    font-size: 13px;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  header h1 {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 0.05em;
-  }
-  header .subtitle { color: var(--muted); font-size: 12px; }
-  .ws-status {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .ws-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--muted);
-    transition: background 0.3s;
-  }
-  .ws-dot.connected { background: var(--green); }
-  .ws-dot.connecting { background: var(--yellow); }
-  .ws-dot.error { background: var(--red); }
-  .scan-time { color: var(--muted); font-size: 11px; }
-  button {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 5px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 12px;
-    transition: background 0.15s;
-  }
-  button:hover { background: var(--border); }
-  button:active { transform: scale(0.97); }
-  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+/* ── Theme variables ─────────────────────────────────────────── */
+:root[data-theme="matrix"] {
+  --bg: #000000;
+  --bg2: #030f03;
+  --surface: #061006;
+  --surface2: #0a1a0a;
+  --border: #1a3a1a;
+  --border-bright: #00ff41;
+  --text: #00cc33;
+  --text-dim: #005500;
+  --text-bright: #00ff41;
+  --accent: #00ff41;
+  --accent2: #00cc33;
+  --red: #ff3333;
+  --yellow: #cccc00;
+  --orange: #cc7700;
+  --green: #00ff41;
+  --cyan: #00cccc;
+  --muted: #004400;
+  --nav-bg: #000000;
+  --header-bg: #000000;
+  --scrollbar: #1a3a1a;
+  --font: 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+}
+:root[data-theme="dark"] {
+  --bg: #080e18;
+  --bg2: #0a1220;
+  --surface: #0d1521;
+  --surface2: #111e2f;
+  --border: #1a2e4a;
+  --border-bright: #00ff9f;
+  --text: #a0c8e8;
+  --text-dim: #2a4a6a;
+  --text-bright: #e0f0ff;
+  --accent: #00e5ff;
+  --accent2: #00ff9f;
+  --red: #ff3358;
+  --yellow: #f59e0b;
+  --orange: #f97316;
+  --green: #00ff9f;
+  --cyan: #00e5ff;
+  --muted: #2a4a6a;
+  --nav-bg: #0a1220;
+  --header-bg: #080e18;
+  --scrollbar: #1a2e4a;
+  --font: 'SF Mono', 'Fira Code', monospace;
+}
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg2: #f1f5f9;
+  --surface: #ffffff;
+  --surface2: #f8fafc;
+  --border: #e2e8f0;
+  --border-bright: #3b82f6;
+  --text: #334155;
+  --text-dim: #94a3b8;
+  --text-bright: #0f172a;
+  --accent: #3b82f6;
+  --accent2: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --orange: #f97316;
+  --green: #10b981;
+  --cyan: #06b6d4;
+  --muted: #94a3b8;
+  --nav-bg: #0f172a;
+  --header-bg: #0f172a;
+  --scrollbar: #e2e8f0;
+  --font: 'SF Mono', 'Fira Code', monospace;
+}
 
-  /* Stat cards */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  @media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
-    transition: border-color 0.3s;
-  }
-  .stat-card.has-findings { border-color: var(--red); background: var(--red-bg); }
-  .stat-card.all-clear { border-color: var(--green); background: var(--green-bg); }
-  .stat-card .stat-label {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .stat-card .stat-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--accent);
-    line-height: 1;
-  }
-  .stat-card.has-findings .stat-value { color: var(--red); }
-  .stat-card.all-clear .stat-value { color: var(--green); }
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-  /* Two-column layout */
-  .main-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .panel-header {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .panel-header .badge {
-    margin-left: auto;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-size: 10px;
-  }
-  .panel-body { padding: 12px 16px; }
+/* ── Matrix scanline overlay ──────────────────────────────────── */
+[data-theme="matrix"] body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+[data-theme="matrix"] * {
+  text-shadow: 0 0 4px rgba(0,255,65,0.3);
+}
+[data-theme="matrix"] .accent { text-shadow: 0 0 8px rgba(0,255,65,0.8); }
 
-  /* Findings */
-  .finding-item {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .finding-item:last-child { border-bottom: none; }
-  .finding-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    margin-bottom: 3px;
-  }
-  .severity-badge {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-  .sev-critical { background: rgba(239,68,68,0.2); color: var(--red); }
-  .sev-high { background: rgba(239,68,68,0.12); color: #f87171; }
-  .sev-medium { background: rgba(249,115,22,0.15); color: var(--orange); }
-  .sev-low { background: rgba(245,158,11,0.15); color: var(--yellow); }
-  .finding-subject { color: var(--muted); font-size: 12px; }
-  .finding-reason {
-    color: var(--muted);
-    font-size: 11px;
-    padding-left: 12px;
-    margin-top: 2px;
-  }
-  .finding-reason::before { content: "› "; }
-  .all-clear-msg {
-    color: var(--green);
-    text-align: center;
-    padding: 24px 0;
-    font-size: 14px;
-  }
+/* ── Scrollbars ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
 
-  /* Ports table */
-  .ports-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-  .ports-table th {
-    text-align: left;
-    color: var(--muted);
-    font-weight: 600;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  .ports-table td {
-    padding: 5px 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  .ports-table tr:last-child td { border-bottom: none; }
-  .ports-table tr:hover td { background: var(--surface2); }
-  .exp-all { color: var(--red); font-weight: 600; }
-  .exp-local { color: var(--yellow); }
-  .exp-loop { color: var(--green); }
-  .flag { width: 18px; text-align: center; }
+/* ── Header ───────────────────────────────────────────────────── */
+header {
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border-bright);
+  padding: 0 16px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+.logo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.15em;
+}
+[data-theme="matrix"] .logo { color: var(--accent); }
+.logo-sub { color: var(--muted); font-size: 10px; letter-spacing: 0.1em; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.ws-badge {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--muted); letter-spacing: 0.05em;
+}
+.ws-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.ws-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.ws-dot.err { background: var(--red); }
+.scan-time { color: var(--muted); font-size: 10px; }
+.btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.btn:hover { border-color: var(--accent); color: var(--text-bright); background: var(--surface2); }
+.btn.primary { border-color: var(--accent); color: var(--accent); }
+.btn.primary:hover { background: var(--accent); color: var(--bg); }
 
-  /* Activity log */
-  #activity-log {
-    height: 300px;
-    overflow-y: auto;
-    font-size: 11px;
-    font-family: inherit;
-    padding: 0;
-  }
-  .log-entry {
-    padding: 3px 0;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 8px;
-    animation: fadeIn 0.2s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; } }
-  .log-ts { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
-  .log-type {
-    flex-shrink: 0;
-    width: 120px;
-    font-size: 10px;
-    color: var(--accent);
-  }
-  .log-msg { color: var(--text); word-break: break-all; }
+/* ── App layout ───────────────────────────────────────────────── */
+.app-body { display: flex; flex: 1; overflow: hidden; }
 
-  .empty-msg { color: var(--muted); padding: 20px 0; text-align: center; font-size: 12px; }
+/* ── Sidebar ──────────────────────────────────────────────────── */
+nav {
+  width: 160px;
+  flex-shrink: 0;
+  background: var(--nav-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  padding: 12px 14px 4px;
+  text-transform: uppercase;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: var(--surface); }
+.nav-item.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: var(--surface);
+}
+[data-theme="matrix"] .nav-item.active { text-shadow: 0 0 8px var(--accent); }
+.nav-icon { font-size: 12px; width: 16px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  font-size: 9px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 0 5px;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+.nav-badge.alert { background: var(--red); border-color: var(--red); color: #fff; }
+.nav-spacer { flex: 1; }
+.nav-settings {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.theme-picker { padding: 8px 14px; }
+.theme-picker label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+.theme-btns { display: flex; gap: 4px; }
+.theme-btn {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 9px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--text-dim);
+  background: transparent;
+  font-family: var(--font);
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--text); }
+.theme-btn.active { border-color: var(--accent); color: var(--accent); }
+.refresh-interval { padding: 4px 14px 8px; }
+.refresh-interval label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
+.refresh-interval select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 3px 5px;
+  border-radius: 2px;
+}
 
-  /* Scrollbar styling */
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* ── Main content ─────────────────────────────────────────────── */
+main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { display: none; flex-direction: column; gap: 14px; }
+.section.active { display: flex; }
+
+/* ── Stat cards ───────────────────────────────────────────────── */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: center;
+  transition: border-color 0.3s;
+}
+.stat-card.attn-red { border-color: var(--red); }
+.stat-card.attn-green { border-color: var(--green); }
+.stat-label { font-size: 9px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+.stat-card.attn-red .stat-value { color: var(--red); }
+.stat-card.attn-green .stat-value { color: var(--green); }
+
+/* ── Panels ───────────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ph-badge {
+  margin-left: auto;
+  font-size: 9px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.panel-body { padding: 10px 14px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+.full-col { grid-column: 1 / -1; }
+
+/* ── Tables ───────────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-table th {
+  text-align: left;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.data-table td { padding: 5px 8px; border-bottom: 1px solid var(--surface2); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background 0.1s; }
+.data-table tbody tr:hover { background: var(--surface2); }
+.flag-col { width: 20px; text-align: center; }
+.exp-all { color: var(--red); }
+.exp-local { color: var(--yellow); }
+.exp-loop { color: var(--green); }
+.port-num { color: var(--accent); font-weight: 700; }
+.proc-name { color: var(--text-bright); }
+.dim-text { color: var(--muted); }
+.mono { font-family: var(--font); }
+
+/* ── Severity badges ──────────────────────────────────────────── */
+.sev {
+  font-size: 9px; padding: 1px 5px; border-radius: 2px;
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.sev-critical { background: rgba(255,51,51,0.2); color: var(--red); border: 1px solid var(--red); }
+.sev-high { background: rgba(255,51,51,0.1); color: #ff6666; border: 1px solid #663333; }
+.sev-medium { background: rgba(204,119,0,0.15); color: var(--orange); border: 1px solid #664400; }
+.sev-low { background: rgba(204,204,0,0.12); color: var(--yellow); border: 1px solid #555500; }
+
+/* ── Findings ─────────────────────────────────────────────────── */
+.finding-item { padding: 10px 0; border-bottom: 1px solid var(--surface2); }
+.finding-item:last-child { border-bottom: none; }
+.finding-title { display: flex; align-items: center; gap: 7px; font-weight: 600; color: var(--text-bright); margin-bottom: 3px; font-size: 12px; }
+.finding-subject { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.finding-reason { color: var(--text-dim); font-size: 10px; padding-left: 10px; margin-top: 2px; }
+.finding-reason::before { content: "› "; color: var(--accent2); }
+.all-clear { color: var(--green); text-align: center; padding: 24px 0; font-size: 13px; }
+
+/* ── Activity log ─────────────────────────────────────────────── */
+#activity-log { max-height: 320px; overflow-y: auto; }
+.log-row {
+  display: flex; gap: 8px; padding: 3px 0;
+  border-bottom: 1px solid var(--surface2);
+  font-size: 11px;
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; } }
+.log-ts { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.log-type { flex-shrink: 0; width: 130px; color: var(--accent); font-size: 10px; }
+.log-msg { color: var(--text); word-break: break-all; }
+.empty-msg { color: var(--muted); text-align: center; padding: 20px 0; font-size: 11px; }
+
+/* ── Process list ─────────────────────────────────────────────── */
+.proc-flag { width: 16px; text-align: center; }
+
+/* ── Status bar ───────────────────────────────────────────────── */
+.status-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.status-bar .ok { color: var(--green); }
+.status-bar .warn { color: var(--yellow); }
+.status-bar .err { color: var(--red); }
+.status-sep { color: var(--border); }
 </style>
 </head>
 <body>
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
 <header>
-  <h1>⬡ SENTINEL</h1>
-  <span class="subtitle">Local Security Monitor</span>
-  <span class="scan-time" id="scan-time">—</span>
-  <button onclick="refresh()">↺ Scan</button>
-  <div class="ws-status">
-    <div class="ws-dot connecting" id="ws-dot"></div>
-    <span id="ws-label">connecting…</span>
+  <span class="logo accent">⬡ SENTINEL</span>
+  <span class="logo-sub">LOCAL SECURITY MONITOR</span>
+  <div class="header-right">
+    <span class="scan-time" id="scan-time">—</span>
+    <button class="btn primary" onclick="triggerScan()">↺ Scan</button>
+    <div class="ws-badge">
+      <div class="ws-dot" id="ws-dot"></div>
+      <span id="ws-label">—</span>
+    </div>
   </div>
 </header>
 
-<main>
-  <div class="stats-grid">
-    <div class="stat-card" id="card-processes">
-      <div class="stat-label">⬤ Processes</div>
-      <div class="stat-value" id="val-processes">—</div>
-    </div>
-    <div class="stat-card" id="card-ports">
-      <div class="stat-label">◆ Ports</div>
-      <div class="stat-value" id="val-ports">—</div>
-    </div>
-    <div class="stat-card" id="card-connections">
-      <div class="stat-label">⇄ Connections</div>
-      <div class="stat-value" id="val-connections">—</div>
-    </div>
-    <div class="stat-card" id="card-attention">
-      <div class="stat-label">● Attention</div>
-      <div class="stat-value" id="val-attention">—</div>
-    </div>
-  </div>
+<!-- ── App body ────────────────────────────────────────────────── -->
+<div class="app-body">
 
-  <div class="main-grid">
-    <div class="panel">
-      <div class="panel-header">
-        ⚠ Needs Attention
-        <span class="badge" id="findings-count">0</span>
-      </div>
-      <div class="panel-body" id="findings-body">
-        <div class="empty-msg">Run a scan to see findings</div>
-      </div>
+  <!-- Sidebar nav -->
+  <nav id="sidebar">
+    <span class="nav-section-label">Monitor</span>
+    <div class="nav-item active" data-section="overview" onclick="showSection('overview')">
+      <span class="nav-icon">◈</span> Overview
+      <span class="nav-badge alert" id="nav-findings-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" data-section="network" onclick="showSection('network')">
+      <span class="nav-icon">◆</span> Network
+      <span class="nav-badge" id="nav-ports-badge">—</span>
+    </div>
+    <div class="nav-item" data-section="processes" onclick="showSection('processes')">
+      <span class="nav-icon">⬤</span> Processes
+      <span class="nav-badge" id="nav-procs-badge">—</span>
+    </div>
+    <div class="nav-item" data-section="findings" onclick="showSection('findings')">
+      <span class="nav-icon">●</span> Findings
+      <span class="nav-badge" id="nav-find-badge">0</span>
+    </div>
+    <div class="nav-item" data-section="activity" onclick="showSection('activity')">
+      <span class="nav-icon">▸</span> Activity
+      <span class="nav-badge" id="nav-act-badge">0</span>
     </div>
 
-    <div class="panel">
-      <div class="panel-header">
-        ◆ Listening Ports
-        <span class="badge" id="ports-count">0</span>
+    <div class="nav-spacer"></div>
+
+    <div class="nav-settings">
+      <div class="theme-picker">
+        <label>THEME</label>
+        <div class="theme-btns">
+          <button class="theme-btn active" onclick="setTheme('matrix')" id="btn-matrix">MTX</button>
+          <button class="theme-btn" onclick="setTheme('dark')" id="btn-dark">DRK</button>
+          <button class="theme-btn" onclick="setTheme('light')" id="btn-light">LGT</button>
+        </div>
       </div>
-      <div class="panel-body" style="padding:0">
-        <div id="ports-body" style="overflow-x:auto">
-          <div class="empty-msg">Run a scan to see ports</div>
+      <div class="refresh-interval">
+        <label>AUTO-REFRESH</label>
+        <select onchange="setRefreshInterval(this.value)" id="refresh-select">
+          <option value="15000">15 s</option>
+          <option value="30000" selected>30 s</option>
+          <option value="60000">60 s</option>
+          <option value="0">Off</option>
+        </select>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main>
+
+    <!-- ── Overview ─────────────────────────────────────────── -->
+    <div class="section active" id="section-overview">
+      <div class="stat-grid">
+        <div class="stat-card" id="card-proc">
+          <div class="stat-label">⬤ Processes</div>
+          <div class="stat-value" id="val-proc">—</div>
+        </div>
+        <div class="stat-card" id="card-ports">
+          <div class="stat-label">◆ Open Ports</div>
+          <div class="stat-value" id="val-ports">—</div>
+        </div>
+        <div class="stat-card" id="card-conns">
+          <div class="stat-label">⇄ Connections</div>
+          <div class="stat-value" id="val-conns">—</div>
+        </div>
+        <div class="stat-card" id="card-attn">
+          <div class="stat-label">● Attention</div>
+          <div class="stat-value" id="val-attn">—</div>
+        </div>
+      </div>
+
+      <div class="status-bar" id="status-bar">
+        <span class="dim-text">Waiting for first scan…</span>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">⚠ Needs Attention <span class="ph-badge" id="ov-find-badge">0</span></div>
+          <div class="panel-body" id="ov-findings-body"><div class="empty-msg">Run a scan to see findings</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">◆ Listening Ports <span class="ph-badge" id="ov-ports-badge">0</span></div>
+          <div class="panel-body" style="padding:0" id="ov-ports-body"><div class="empty-msg">Run a scan to see ports</div></div>
         </div>
       </div>
     </div>
 
-    <div class="panel" style="grid-column: 1 / -1">
-      <div class="panel-header">
-        ● Live Activity
-        <span class="badge" id="activity-count">0</span>
+    <!-- ── Network ───────────────────────────────────────────── -->
+    <div class="section" id="section-network">
+      <div class="panel">
+        <div class="panel-header">◆ Listening Ports <span class="ph-badge" id="net-ports-badge">0</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="net-ports-table">
+            <thead><tr><th class="flag-col"></th><th>Port</th><th>Proto</th><th>Process</th><th>Bind Address</th><th>Exposure</th></tr></thead>
+            <tbody><tr><td colspan="6"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
-      <div class="panel-body" style="padding:8px 16px">
-        <div id="activity-log">
-          <div class="empty-msg">Waiting for events…</div>
+      <div class="panel">
+        <div class="panel-header">⇄ Active Connections <span class="ph-badge" id="net-conns-badge">0</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="net-conns-table">
+            <thead><tr><th>Process</th><th>Local</th><th>Remote</th><th>State</th></tr></thead>
+            <tbody><tr><td colspan="4"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
-  </div>
-</main>
+
+    <!-- ── Processes ─────────────────────────────────────────── -->
+    <div class="section" id="section-processes">
+      <div class="panel">
+        <div class="panel-header">⬤ All Processes <span class="ph-badge" id="proc-badge">0</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="proc-table">
+            <thead><tr><th class="flag-col">!</th><th>PID</th><th>Name</th><th>User</th><th>Ports</th><th>Path</th></tr></thead>
+            <tbody><tr><td colspan="6"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Findings ──────────────────────────────────────────── -->
+    <div class="section" id="section-findings">
+      <div class="panel">
+        <div class="panel-header">● Security Findings <span class="ph-badge" id="find-badge">0</span></div>
+        <div class="panel-body" id="find-body"><div class="empty-msg">No data — run a scan</div></div>
+      </div>
+    </div>
+
+    <!-- ── Activity ──────────────────────────────────────────── -->
+    <div class="section" id="section-activity">
+      <div class="panel full-col">
+        <div class="panel-header">▸ Live Activity <span class="ph-badge" id="act-badge">0</span></div>
+        <div class="panel-body" style="padding:6px 14px">
+          <div id="activity-log"><div class="empty-msg">Waiting for events…</div></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
 
 <script>
-  const WS_URL = `ws://${location.host}/events`;
-  const SCAN_URL = `/scan`;
-  let ws = null;
-  let activityCount = 0;
-  const MAX_LOG_ENTRIES = 200;
+// ── State ──────────────────────────────────────────────────────────────────
 
-  // ── WebSocket ────────────────────────────────────────────────────────────────
+let ws = null;
+let actCount = 0;
+let refreshTimer = null;
+let refreshInterval = 30000;
+let lastScanData = null;
+const MAX_LOG = 200;
 
-  function connectWS() {
-    setWsStatus('connecting');
-    ws = new WebSocket(WS_URL);
+// ── Theme ──────────────────────────────────────────────────────────────────
 
-    ws.onopen = () => {
-      setWsStatus('connected');
-    };
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('sentinel-theme', t);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('btn-' + t);
+  if (btn) btn.classList.add('active');
+}
 
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'ping') return;
-        appendActivity(msg);
-        // Re-fetch scan data on process/network events
-        if (msg.event_type && (
-          msg.event_type.includes('PROCESS') ||
-          msg.event_type.includes('CONNECTION') ||
-          msg.event_type.includes('PORT')
-        )) {
-          refresh();
-        }
-      } catch (_) {}
-    };
+function loadTheme() {
+  const saved = localStorage.getItem('sentinel-theme') || 'matrix';
+  setTheme(saved);
+}
 
-    ws.onerror = () => setWsStatus('error');
+// ── Nav sections ───────────────────────────────────────────────────────────
 
-    ws.onclose = () => {
-      setWsStatus('error');
-      // Reconnect after 3s
-      setTimeout(connectWS, 3000);
-    };
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const sec = document.getElementById('section-' + id);
+  if (sec) sec.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.dataset.section === id) n.classList.add('active');
+  });
+  // Refresh data for the section if we have it
+  if (lastScanData) renderAll(lastScanData);
+}
+
+// ── Refresh interval ───────────────────────────────────────────────────────
+
+function setRefreshInterval(ms) {
+  refreshInterval = parseInt(ms, 10);
+  localStorage.setItem('sentinel-refresh', ms);
+  clearInterval(refreshTimer);
+  if (refreshInterval > 0) {
+    refreshTimer = setInterval(triggerScan, refreshInterval);
   }
+}
 
-  function setWsStatus(state) {
-    const dot = document.getElementById('ws-dot');
-    const label = document.getElementById('ws-label');
-    dot.className = 'ws-dot ' + state;
-    label.textContent = state === 'connected' ? 'live' : state === 'connecting' ? 'connecting…' : 'reconnecting…';
-  }
+// ── WebSocket ──────────────────────────────────────────────────────────────
 
-  // ── Scan data ────────────────────────────────────────────────────────────────
-
-  async function refresh() {
+function connectWS() {
+  setWs('connecting');
+  ws = new WebSocket(`ws://${location.host}/events`);
+  ws.onopen = () => setWs('live');
+  ws.onmessage = e => {
     try {
-      const res = await fetch(SCAN_URL);
-      if (!res.ok) return;
-      const data = await res.json();
-      renderScan(data);
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'ping') return;
+      appendActivity(msg);
+      if (msg.event_type && /PROCESS|PORT|CONNECTION/.test(msg.event_type)) {
+        triggerScan();
+      }
     } catch (_) {}
+  };
+  ws.onerror = () => setWs('err');
+  ws.onclose = () => { setWs('err'); setTimeout(connectWS, 3000); };
+}
+
+function setWs(state) {
+  const dot = document.getElementById('ws-dot');
+  const lbl = document.getElementById('ws-label');
+  dot.className = 'ws-dot ' + state;
+  lbl.textContent = state === 'live' ? 'live' : state === 'connecting' ? 'connecting…' : 'reconnecting…';
+}
+
+// ── Scan ───────────────────────────────────────────────────────────────────
+
+async function triggerScan() {
+  try {
+    const res = await fetch('/scan');
+    if (!res.ok) return;
+    lastScanData = await res.json();
+    renderAll(lastScanData);
+  } catch (_) {}
+}
+
+function renderAll(data) {
+  renderStats(data);
+  renderStatusBar(data);
+  renderFindings(data.findings || []);
+  renderPorts(data.listeners || []);
+  renderNetwork(data.listeners || [], data.connections || []);
+  renderProcesses(data.processes || []);
+  updateNavBadges(data);
+
+  if (data.scan_time) {
+    const t = new Date(data.scan_time);
+    document.getElementById('scan-time').textContent = 'scanned ' + t.toLocaleTimeString();
   }
+}
 
-  function renderScan(data) {
-    // Stat cards
-    setStatCard('processes', data.process_count ?? '—', false);
-    setStatCard('ports', data.listener_count ?? '—', false);
-    setStatCard('connections', data.connection_count ?? '—', false);
-    const attn = data.attention_count ?? 0;
-    setStatCard('attention', attn, true, attn > 0 ? 'has-findings' : 'all-clear');
+// ── Stats ──────────────────────────────────────────────────────────────────
 
-    // Scan time
-    if (data.scan_time) {
-      const t = new Date(data.scan_time);
-      document.getElementById('scan-time').textContent =
-        'Last scan: ' + t.toLocaleTimeString();
-    }
+function renderStats(data) {
+  setCard('proc', data.process_count ?? '—', false, '');
+  setCard('ports', data.listener_count ?? '—', false, '');
+  setCard('conns', data.connection_count ?? '—', false, '');
+  const n = data.attention_count ?? 0;
+  setCard('attn', n, true, n > 0 ? 'attn-red' : 'attn-green');
+}
 
-    // Findings
-    renderFindings(data.findings || []);
+function setCard(name, val, special, cls) {
+  document.getElementById('val-' + name).textContent = val;
+  const card = document.getElementById('card-' + name);
+  card.classList.remove('attn-red', 'attn-green');
+  if (cls) card.classList.add(cls);
+}
 
-    // Ports (from findings we can get listener info; full port list needs /scan extension)
-    renderFindings(data.findings || []);
+// ── Status bar ─────────────────────────────────────────────────────────────
+
+function renderStatusBar(data) {
+  const bar = document.getElementById('status-bar');
+  const n = data.attention_count ?? 0;
+  const procs = data.process_count ?? 0;
+  const ports = data.listener_count ?? 0;
+  const conns = data.connection_count ?? 0;
+  if (n > 0) {
+    bar.innerHTML = `<span class="err">⚠ ${n} finding${n > 1 ? 's' : ''} need attention</span>
+      <span class="status-sep">·</span>
+      <span>${procs} processes · ${ports} ports · ${conns} connections</span>`;
+  } else {
+    bar.innerHTML = `<span class="ok">✓ All clear</span>
+      <span class="status-sep">·</span>
+      <span>${procs} processes · ${ports} ports · ${conns} connections scanned — no issues found</span>`;
   }
+}
 
-  function setStatCard(name, value, special, cls) {
-    document.getElementById('val-' + name).textContent = value;
-    const card = document.getElementById('card-' + name);
-    card.classList.remove('has-findings', 'all-clear');
-    if (cls) card.classList.add(cls);
-  }
+// ── Findings ───────────────────────────────────────────────────────────────
 
-  function renderFindings(findings) {
-    const body = document.getElementById('findings-body');
-    const badge = document.getElementById('findings-count');
-    badge.textContent = findings.length;
+const SEV_ORDER = ['critical','high','medium','low'];
 
+function renderFindings(findings) {
+  ['ov-findings-body','find-body'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    document.getElementById('ov-find-badge').textContent = findings.length;
+    document.getElementById('find-badge').textContent = findings.length;
     if (findings.length === 0) {
-      body.innerHTML = '<div class="all-clear-msg">✓ All clear — no issues detected</div>';
+      el.innerHTML = '<div class="all-clear">✓ All clear — no security issues detected</div>';
       return;
     }
-
-    const SEV_ORDER = ['critical', 'high', 'medium', 'low'];
-    findings.sort((a, b) =>
-      SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity)
-    );
-
-    body.innerHTML = findings.map(f => {
+    const sorted = [...findings].sort((a,b) =>
+      SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity));
+    el.innerHTML = sorted.map(f => {
       const sev = (f.severity || '').toLowerCase();
-      const reasons = (f.reasons || []).slice(0, 2).map(r =>
-        `<div class="finding-reason">${escHtml(r.description || r)}</div>`
-      ).join('');
-      return `
-        <div class="finding-item">
-          <div class="finding-title">
-            <span class="severity-badge sev-${sev}">${sev.toUpperCase()}</span>
-            ${escHtml(f.title || '')}
-          </div>
-          <div class="finding-subject">${escHtml(f.subject || '')}</div>
-          ${reasons}
-        </div>`;
+      const reasons = (f.reasons || []).slice(0,3).map(r =>
+        `<div class="finding-reason">${esc(r.description || r)}</div>`).join('');
+      return `<div class="finding-item">
+        <div class="finding-title"><span class="sev sev-${sev}">${sev.toUpperCase()}</span>${esc(f.title)}</div>
+        <div class="finding-subject">${esc(f.subject)}</div>
+        ${reasons}
+      </div>`;
+    }).join('');
+  });
+}
+
+// ── Ports ──────────────────────────────────────────────────────────────────
+
+const EXP = {
+  all_interfaces: ['⚠','exp-all','All interfaces'],
+  local_network: ['◆','exp-local','Local network'],
+  loopback: ['·','exp-loop','Localhost only'],
+};
+
+function renderPorts(listeners) {
+  document.getElementById('ov-ports-badge').textContent = listeners.length;
+  const el = document.getElementById('ov-ports-body');
+  if (listeners.length === 0) {
+    el.innerHTML = '<div class="empty-msg">No open ports detected</div>';
+    return;
+  }
+  const sorted = [...listeners].sort((a,b) => {
+    const o = { all_interfaces:0, local_network:1, loopback:2 };
+    return (o[a.exposure]??9) - (o[b.exposure]??9) || a.port - b.port;
+  });
+  const rows = sorted.slice(0,20).map(l => {
+    const [icon, cls, label] = EXP[l.exposure] || ['?','',''];
+    return `<tr>
+      <td class="flag-col ${cls}">${icon}</td>
+      <td class="port-num">:${l.port}</td>
+      <td class="dim-text">${esc(l.protocol)}</td>
+      <td class="proc-name">${esc(l.process)}</td>
+      <td class="${cls}">${label}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="data-table"><thead><tr>
+    <th class="flag-col"></th><th>Port</th><th>Proto</th><th>Process</th><th>Exposure</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Network section ────────────────────────────────────────────────────────
+
+function renderNetwork(listeners, connections) {
+  // Ports table
+  const pt = document.querySelector('#net-ports-table tbody');
+  document.getElementById('net-ports-badge').textContent = listeners.length;
+  if (listeners.length === 0) {
+    pt.innerHTML = '<tr><td colspan="6"><div class="empty-msg">No listener data — macOS may restrict socket visibility</div></td></tr>';
+  } else {
+    const sorted = [...listeners].sort((a,b) => a.port - b.port);
+    pt.innerHTML = sorted.map(l => {
+      const [icon, cls, label] = EXP[l.exposure] || ['?','',''];
+      return `<tr>
+        <td class="flag-col ${cls}">${icon}</td>
+        <td class="port-num">:${l.port}</td>
+        <td class="dim-text">${esc(l.protocol)}</td>
+        <td class="proc-name">${esc(l.process)}</td>
+        <td class="dim-text">${esc(l.address)}</td>
+        <td class="${cls}">${label}</td>
+      </tr>`;
     }).join('');
   }
 
-  // ── Activity log ─────────────────────────────────────────────────────────────
-
-  function appendActivity(msg) {
-    const log = document.getElementById('activity-log');
-    // Remove empty state
-    const empty = log.querySelector('.empty-msg');
-    if (empty) empty.remove();
-
-    const ts = msg.timestamp
-      ? new Date(msg.timestamp).toLocaleTimeString()
-      : new Date().toLocaleTimeString();
-
-    const payload = msg.payload || {};
-    let text = '';
-    if (payload.name) text += payload.name;
-    if (payload.pid) text += ` (${payload.pid})`;
-    if (payload.remote_address) text += ` → ${payload.remote_address}`;
-    if (!text && msg.event_type) text = JSON.stringify(payload).slice(0, 80);
-
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML = `
-      <span class="log-ts">${escHtml(ts)}</span>
-      <span class="log-type">${escHtml(msg.event_type || 'EVENT')}</span>
-      <span class="log-msg">${escHtml(text)}</span>`;
-    log.insertBefore(entry, log.firstChild);
-
-    activityCount++;
-    document.getElementById('activity-count').textContent = activityCount;
-
-    // Trim old entries
-    const entries = log.querySelectorAll('.log-entry');
-    if (entries.length > MAX_LOG_ENTRIES) {
-      entries[entries.length - 1].remove();
-    }
+  // Connections table
+  const ct = document.querySelector('#net-conns-table tbody');
+  const conns = connections || [];
+  document.getElementById('net-conns-badge').textContent = conns.length;
+  if (conns.length === 0) {
+    ct.innerHTML = '<tr><td colspan="4"><div class="empty-msg">No connection data</div></td></tr>';
+  } else {
+    ct.innerHTML = conns.slice(0, 100).map(c => `<tr>
+      <td class="proc-name">${esc(c.process || '')}</td>
+      <td class="dim-text">${esc(c.local || '')}</td>
+      <td class="mono">${esc(c.remote || '—')}</td>
+      <td class="dim-text">${esc(c.state || '')}</td>
+    </tr>`).join('');
   }
+}
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Processes ──────────────────────────────────────────────────────────────
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+function renderProcesses(processes) {
+  const tb = document.querySelector('#proc-table tbody');
+  document.getElementById('proc-badge').textContent = processes.length;
+  if (processes.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6"><div class="empty-msg">No process data — run a scan</div></td></tr>';
+    return;
   }
+  tb.innerHTML = processes.slice(0, 200).map(p => {
+    const flag = p.has_finding ? '<span style="color:var(--red)">●</span>' : '';
+    const ports = (p.ports || []).map(pt => `:${pt}`).join(' ');
+    return `<tr>
+      <td class="proc-flag">${flag}</td>
+      <td class="dim-text">${esc(String(p.pid))}</td>
+      <td class="proc-name">${esc(p.name || '')}</td>
+      <td class="dim-text">${esc(p.user || '')}</td>
+      <td class="mono" style="color:var(--cyan)">${esc(ports)}</td>
+      <td class="dim-text" style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.path || '')}</td>
+    </tr>`;
+  }).join('');
+}
 
-  // ── Boot ─────────────────────────────────────────────────────────────────────
+// ── Activity log ───────────────────────────────────────────────────────────
 
-  connectWS();
-  refresh();
-  // Auto-refresh every 30s
-  setInterval(refresh, 30000);
+function appendActivity(msg) {
+  const log = document.getElementById('activity-log');
+  const empty = log.querySelector('.empty-msg');
+  if (empty) empty.remove();
+
+  const ts = msg.timestamp
+    ? new Date(msg.timestamp).toLocaleTimeString()
+    : new Date().toLocaleTimeString();
+  const payload = msg.payload || {};
+  let text = '';
+  if (payload.name) text += payload.name;
+  if (payload.pid) text += ` (${payload.pid})`;
+  if (payload.remote_address) text += ` → ${payload.remote_address}`;
+  if (payload.domain) text += payload.domain;
+  if (!text && msg.event_type) text = JSON.stringify(payload).slice(0, 80);
+
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.innerHTML = `<span class="log-ts">${esc(ts)}</span><span class="log-type">${esc(msg.event_type||'')}</span><span class="log-msg">${esc(text)}</span>`;
+  log.insertBefore(row, log.firstChild);
+
+  actCount++;
+  document.getElementById('act-badge').textContent = actCount;
+  document.getElementById('nav-act-badge').textContent = actCount;
+
+  const entries = log.querySelectorAll('.log-row');
+  if (entries.length > MAX_LOG) entries[entries.length - 1].remove();
+}
+
+// ── Nav badges ─────────────────────────────────────────────────────────────
+
+function updateNavBadges(data) {
+  const n = data.attention_count ?? 0;
+  const findBadge = document.getElementById('nav-findings-badge');
+  findBadge.textContent = n;
+  findBadge.style.display = n > 0 ? '' : 'none';
+  document.getElementById('nav-find-badge').textContent = (data.findings || []).length;
+  document.getElementById('nav-ports-badge').textContent = data.listener_count ?? 0;
+  document.getElementById('nav-procs-badge').textContent = data.process_count ?? 0;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+
+loadTheme();
+const savedInterval = localStorage.getItem('sentinel-refresh') || '30000';
+document.getElementById('refresh-select').value = savedInterval;
+setRefreshInterval(savedInterval);
+
+connectWS();
+triggerScan();
 </script>
 </body>
 </html>

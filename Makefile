@@ -1,4 +1,4 @@
-.PHONY: help install lint typecheck test run scan smoke fmt clean bump-patch bump-minor bump-major
+.PHONY: help install lint typecheck test run serve scan smoke fmt clean bump-patch bump-minor bump-major
 
 # Always use the venv directly — avoids `poetry run` triggering broken-venv detection on every call.
 PYTHON  := .venv/bin/python
@@ -17,6 +17,7 @@ help:
 	@echo ""
 	@echo "  Daily use"
 	@echo "    make run          Launch the interactive TUI"
+	@echo "    make serve        Start browser dashboard + API on :7173"
 	@echo "    make scan         Run a quick one-shot security scan"
 	@echo "    make test         Run the test suite"
 	@echo "    make fmt          Auto-fix formatting and lint"
@@ -40,6 +41,9 @@ install: $(PYTHON)
 
 run: $(PYTHON)
 	$(SENTINEL)
+
+serve: $(PYTHON)
+	$(SENTINEL) serve
 
 scan: $(PYTHON)
 	$(SENTINEL) scan
