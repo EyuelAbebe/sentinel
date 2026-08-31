@@ -136,8 +136,9 @@ class SentinelApp(App[None]):
         Binding("6", "tab_users", "Users", show=False),
         Binding("7", "tab_resources", "Resources", show=False),
         Binding("slash", "focus_search", "Search", key_display="/", show=True),
-        Binding("comma", "prev_tab", "← Tab", key_display="<", show=False),
-        Binding("period", "next_tab", "→ Tab", key_display=">", show=False),
+        # priority=True so these fire before focused DataTable consumes the keys
+        Binding("left", "prev_tab", "← Tab", key_display="←", show=False, priority=True),
+        Binding("right", "next_tab", "→ Tab", key_display="→", show=False, priority=True),
     ]
 
     def __init__(self) -> None:
@@ -161,6 +162,9 @@ class SentinelApp(App[None]):
         )
         self._paused = False
         self._last_result: ScanResult | None = None
+        # None = no scan yet; True/False track previous findings state so we
+        # only notify when the security posture actually changes
+        self._prev_had_findings: bool | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -240,15 +244,19 @@ class SentinelApp(App[None]):
             with contextlib.suppress(Exception):
                 self.query_one("#overview", OverviewScreen).set_scanning(False, result, duration)
             self._push_result(result)
-            if result.findings:
-                n = len(result.findings)
-                self.notify(
-                    f"⚠  {n} finding{'s' if n > 1 else ''} need attention",
-                    severity="warning",
-                    timeout=4,
-                )
-            else:
-                self.notify("✓  All clear", severity="information", timeout=2)
+            had_findings = bool(result.findings)
+            if had_findings != self._prev_had_findings:
+                # Only notify when the security posture changes
+                if had_findings:
+                    n = len(result.findings)
+                    self.notify(
+                        f"⚠  {n} finding{'s' if n > 1 else ''} need attention",
+                        severity="warning",
+                        timeout=4,
+                    )
+                else:
+                    self.notify("✓  All clear", severity="information", timeout=2)
+            self._prev_had_findings = had_findings
         except Exception as exc:
             with contextlib.suppress(Exception):
                 self.query_one("#overview", OverviewScreen).set_scanning(False)
