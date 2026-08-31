@@ -34,19 +34,36 @@ Verify:
 poetry run sentinel doctor
 ```
 
-> For pip, pipx, launchd auto-start, and upgrade instructions see [docs/installation.md](docs/installation.md).
+> **Tip:** run `source .venv/bin/activate` once so you can type `sentinel` directly without the `poetry run` prefix.
+
+> For pip, pipx, and upgrade instructions see [docs/installation.md](docs/installation.md).
 
 ---
 
 ## Quick start
 
 ```bash
-poetry run sentinel scan        # one-shot security scan
-poetry run sentinel             # open interactive live monitor (TUI)
-poetry run sentinel serve       # start HTTP API + browser dashboard on :7173
+sentinel scan        # one-shot security scan
+sentinel             # open interactive live monitor (TUI)
+sentinel serve       # start HTTP API + browser dashboard on :7173
 ```
 
-Or activate the virtualenv once: `source .venv/bin/activate`, then just `sentinel <cmd>`.
+### Run as a background service (auto-start at login)
+
+```bash
+poetry install --extras api   # install the API server dependency
+sentinel service install      # register with launchd and start at login
+```
+
+Manage it:
+
+```bash
+sentinel service status       # running? PID? API reachable?
+sentinel service stop         # stop without uninstalling
+sentinel service start        # start again
+sentinel service restart      # restart (e.g. after an upgrade)
+sentinel service uninstall    # remove from launchd entirely
+```
 
 ---
 
