@@ -217,9 +217,7 @@ class AppsScreen(Widget):
                 for i, conn in enumerate(cp.connections):
                     remote_addr = conn.remote_endpoint.address if conn.remote_endpoint else None
                     remote_port = conn.remote_endpoint.port if conn.remote_endpoint else None
-                    remote_str = (
-                        f"{remote_addr}:{remote_port}" if remote_addr else "—"
-                    )
+                    remote_str = f"{remote_addr}:{remote_port}" if remote_addr else "—"
                     conn_type = _classify_remote(remote_addr)
                     table.add_row(
                         "",
@@ -304,9 +302,7 @@ class AppsScreen(Widget):
                 if is_exp
                 else "[bold]→[/bold] expand  ·  [bold]Enter[/bold] toggle"
             )
-            lines.append(
-                f"\n  [dim]{n} connection{'s' if n != 1 else ''}  ·  {hint}[/dim]"
-            )
+            lines.append(f"\n  [dim]{n} connection{'s' if n != 1 else ''}  ·  {hint}[/dim]")
 
         lines.append("")
         lines.append(f"  [dim]Path[/dim]  {identity.executable_path or '(unknown)'}")

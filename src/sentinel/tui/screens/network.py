@@ -297,10 +297,15 @@ class NetworkScreen(Widget):
         type_counts: dict[str, int] = {}
         for _, _conn, ctype in group["connections"]:
             clean = (
-                ctype.replace("[cyan]", "").replace("[/cyan]", "")
-                .replace("[yellow]", "").replace("[/yellow]", "")
-                .replace("[green]", "").replace("[/green]", "")
-                .replace("[dim]", "").replace("[/dim]", "").strip()
+                ctype.replace("[cyan]", "")
+                .replace("[/cyan]", "")
+                .replace("[yellow]", "")
+                .replace("[/yellow]", "")
+                .replace("[green]", "")
+                .replace("[/green]", "")
+                .replace("[dim]", "")
+                .replace("[/dim]", "")
+                .strip()
             )
             type_counts[clean] = type_counts.get(clean, 0) + 1
         summary = "  ".join(
