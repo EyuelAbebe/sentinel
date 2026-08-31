@@ -4,6 +4,7 @@ import contextlib
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
@@ -43,12 +44,14 @@ class FindingsScreen(Widget):
     #findings-table {
         height: 1fr;
     }
-    #finding-detail {
+    #finding-detail-scroll {
         height: 12;
         border-top: solid #00ff9f;
-        padding: 1 2;
         background: #0d1521;
         color: #a0c8e8;
+    }
+    #finding-detail {
+        padding: 1 2;
     }
     """
 
@@ -61,10 +64,11 @@ class FindingsScreen(Widget):
         table: DataTable[str] = DataTable(id="findings-table", cursor_type="row")
         table.add_columns("Sev", "Title", "Subject", "Signals")
         yield table
-        yield Static(
-            "[dim]↑ ↓  move cursor  ·  arrow keys show finding details below[/dim]",
-            id="finding-detail",
-        )
+        with VerticalScroll(id="finding-detail-scroll"):
+            yield Static(
+                "[dim]↑ ↓  navigate  ·  Enter  show finding details[/dim]",
+                id="finding-detail",
+            )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),

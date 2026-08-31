@@ -5,6 +5,7 @@ import ipaddress
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.containers import VerticalScroll
 from textual.events import Key
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
@@ -88,12 +89,14 @@ class AppsScreen(Widget):
     #process-table {
         height: 1fr;
     }
-    #detail-panel {
+    #detail-scroll {
         height: 11;
         border-top: solid #00ff9f;
-        padding: 1 2;
         background: #0d1521;
         color: #a0c8e8;
+    }
+    #detail-panel {
+        padding: 1 2;
     }
     """
 
@@ -108,14 +111,15 @@ class AppsScreen(Widget):
         table: DataTable[str] = DataTable(id="process-table", cursor_type="row")
         table.add_columns("!", "PID", "Name", "User", "Ports", "Conns", "Status", "Path")
         yield table
-        yield Static(
-            "[dim]↑ ↓  navigate  ·  →  expand connections  ·  ←  collapse  ·  Enter  toggle[/dim]",
-            id="detail-panel",
-        )
+        with VerticalScroll(id="detail-scroll"):
+            yield Static(
+                "[dim]↑ ↓  navigate  ·  Enter  expand/collapse connections[/dim]",
+                id="detail-panel",
+            )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
-                ("→←", "Expand"),
+                ("Enter", "Expand"),
                 ("s", "Rescan"),
                 ("p", "Pause"),
                 ("1-7", "Tabs"),
