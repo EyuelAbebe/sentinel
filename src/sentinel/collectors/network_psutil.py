@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import ipaddress
+import types
 from datetime import UTC, datetime
 from typing import Any
 
@@ -55,12 +56,28 @@ class PsutilNetworkCollector:
 
 
 def _collect_per_process() -> list[Any]:
-    """Collect connections per-process — works for the current user without root."""
+    """Collect connections per-process — works for the current user without root.
+
+    proc.net_connections() returns pconn namedtuples that lack a .pid field.
+    We wrap each one with a SimpleNamespace that adds pid so that
+    _connection_to_observation can correlate sockets back to processes.
+    """
     conns: list[Any] = []
-    for proc in psutil.process_iter():
+    for proc in psutil.process_iter(["pid"]):
         with contextlib.suppress(psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess):
-            proc_conns = proc.net_connections(kind="inet")
-            conns.extend(proc_conns)
+            pid = proc.info["pid"]
+            for c in proc.net_connections(kind="inet"):
+                conns.append(
+                    types.SimpleNamespace(
+                        fd=getattr(c, "fd", -1),
+                        family=c.family,
+                        type=c.type,
+                        laddr=c.laddr,
+                        raddr=c.raddr,
+                        status=c.status,
+                        pid=pid,
+                    )
+                )
     return conns
 
 

@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.events import Key
 from textual.message import Message
-from textual.widgets import Header, TabbedContent, TabPane
+from textual.widgets import Header, Input, TabbedContent, TabPane
 
 from sentinel.application.event_bus import EventBus
 from sentinel.application.live_monitor import LiveMonitorService
@@ -136,9 +137,16 @@ class SentinelApp(App[None]):
         Binding("6", "tab_users", "Users", show=False),
         Binding("7", "tab_resources", "Resources", show=False),
         Binding("slash", "focus_search", "Search", key_display="/", show=True),
-        Binding("comma", "prev_tab", "← Tab", key_display="<", show=False),
-        Binding("period", "next_tab", "→ Tab", key_display=">", show=False),
     ]
+
+    def on_key(self, event: Key) -> None:
+        # Left/right switch tabs unless a text Input has focus (where they move cursor)
+        if event.key in ("left", "right") and not isinstance(self.focused, Input):
+            event.stop()
+            if event.key == "left":
+                self.action_prev_tab()
+            else:
+                self.action_next_tab()
 
     def __init__(self) -> None:
         super().__init__()
@@ -161,6 +169,9 @@ class SentinelApp(App[None]):
         )
         self._paused = False
         self._last_result: ScanResult | None = None
+        # None = no scan yet; True/False track previous findings state so we
+        # only notify when the security posture actually changes
+        self._prev_had_findings: bool | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -240,15 +251,19 @@ class SentinelApp(App[None]):
             with contextlib.suppress(Exception):
                 self.query_one("#overview", OverviewScreen).set_scanning(False, result, duration)
             self._push_result(result)
-            if result.findings:
-                n = len(result.findings)
-                self.notify(
-                    f"⚠  {n} finding{'s' if n > 1 else ''} need attention",
-                    severity="warning",
-                    timeout=4,
-                )
-            else:
-                self.notify("✓  All clear", severity="information", timeout=2)
+            had_findings = bool(result.findings)
+            if had_findings != self._prev_had_findings:
+                # Only notify when the security posture changes
+                if had_findings:
+                    n = len(result.findings)
+                    self.notify(
+                        f"⚠  {n} finding{'s' if n > 1 else ''} need attention",
+                        severity="warning",
+                        timeout=4,
+                    )
+                else:
+                    self.notify("✓  All clear", severity="information", timeout=2)
+            self._prev_had_findings = had_findings
         except Exception as exc:
             with contextlib.suppress(Exception):
                 self.query_one("#overview", OverviewScreen).set_scanning(False)

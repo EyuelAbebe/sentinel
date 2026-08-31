@@ -134,15 +134,21 @@ class SearchScreen(Widget):
                 )
             return
 
+        seen_pids: set[int] = set()
+
         for cp in self._correlated:
             identity = cp.observation.identity
             name_lower = (identity.name or "").lower()
             path_lower = (identity.executable_path or "").lower()
+            name_or_path_match = q in name_lower or q in path_lower
+
+            added_socket = False
 
             for sock in cp.listeners:
                 port_str = str(sock.local_endpoint.port)
                 addr_lower = (sock.local_endpoint.address or "").lower()
-                if q in port_str or q in name_lower or q in addr_lower or q in path_lower:
+                if q in port_str or name_or_path_match or q in addr_lower:
+                    added_socket = True
                     row: dict[str, Any] = {
                         "kind": "listener",
                         "cp": cp,
@@ -163,12 +169,8 @@ class SearchScreen(Widget):
                 remote_str = ""
                 if conn.remote_endpoint:
                     remote_str = f"{conn.remote_endpoint.address}:{conn.remote_endpoint.port}"
-                if (
-                    q in local_str.lower()
-                    or q in remote_str.lower()
-                    or q in name_lower
-                    or q in path_lower
-                ):
+                if q in local_str.lower() or q in remote_str.lower() or name_or_path_match:
+                    added_socket = True
                     row = {
                         "kind": "connection",
                         "cp": cp,
@@ -184,6 +186,20 @@ class SearchScreen(Widget):
                         conn.socket_state.upper(),
                         key=str(idx),
                     )
+
+            # If name/path matched but the process has no sockets, show a process row
+            if not added_socket and name_or_path_match and cp.pid not in seen_pids:
+                seen_pids.add(cp.pid)
+                row = {"kind": "process", "cp": cp}
+                idx = len(self._result_rows)
+                self._result_rows.append(row)
+                table.add_row(
+                    "[dim]PROC[/dim]",
+                    f"pid {cp.pid}",
+                    identity.name,
+                    f"[dim]{identity.user or '?'}[/dim]",
+                    key=str(idx),
+                )
 
         n = len(self._result_rows)
         if n > 0:
@@ -223,6 +239,20 @@ class SearchScreen(Widget):
             if identity.command_line:
                 cmd = " ".join(identity.command_line)[:120]
                 lines.append(f"  [dim]Cmd[/dim]           {cmd}")
+        elif row["kind"] == "process":
+            lines = [
+                f"[bold]{identity.name}[/bold]  [dim](PID {identity.pid})[/dim]",
+                "  [dim]No open ports or active connections[/dim]",
+                "",
+                f"  [dim]User[/dim]   {identity.user or '?'}",
+            ]
+            if identity.executable_path:
+                lines.append(f"  [dim]Path[/dim]   {identity.executable_path}")
+            if identity.parent_pid:
+                lines.append(f"  [dim]PPID[/dim]   {identity.parent_pid}")
+            if identity.command_line:
+                cmd = " ".join(identity.command_line)[:120]
+                lines.append(f"  [dim]Cmd[/dim]    {cmd}")
         else:
             conn = row["conn"]
             remote = row.get("remote_str") or "—"
