@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.events import Key
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
@@ -41,6 +43,24 @@ _EXPOSURE_SHORT: dict[ExposureLevel, str] = {
 }
 
 _SUSPICIOUS_PATH_FRAGMENTS = ("/tmp/", "/var/tmp/", "/Downloads/", "/Temp/")
+
+
+def _classify_remote(address: str | None) -> str:
+    if not address:
+        return "[dim]—[/dim]"
+    try:
+        ip = ipaddress.ip_address(address)
+        if ip.is_loopback:
+            return "[green]loopback[/green]"
+        if ip.is_private:
+            return "[yellow]local-net[/yellow]"
+        if ip.is_global:
+            return "[cyan]external[/cyan]"
+        if ip.is_link_local:
+            return "[dim]link-local[/dim]"
+    except ValueError:
+        pass
+    return "[dim]unknown[/dim]"
 
 
 def _status_badge(
@@ -81,19 +101,21 @@ class AppsScreen(Widget):
         super().__init__(**kwargs)
         self._correlated: list[CorrelatedProcess] = []
         self._findings: list[Finding] = []
+        self._expanded: set[str] = set()
+        self._current_key: str | None = None
 
     def compose(self) -> ComposeResult:
         table: DataTable[str] = DataTable(id="process-table", cursor_type="row")
         table.add_columns("!", "PID", "Name", "User", "Ports", "Conns", "Status", "Path")
         yield table
         yield Static(
-            "[dim]↑ ↓  navigate  ·  details show below as you scroll[/dim]",
+            "[dim]↑ ↓  navigate  ·  →  expand connections  ·  ←  collapse  ·  Enter  toggle[/dim]",
             id="detail-panel",
         )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
-                ("Enter", "Inspect"),
+                ("→←", "Expand"),
                 ("s", "Rescan"),
                 ("p", "Pause"),
                 ("1-7", "Tabs"),
@@ -106,12 +128,40 @@ class AppsScreen(Widget):
         with contextlib.suppress(Exception):
             self.query_one("#process-table", DataTable).focus()
 
+    def on_key(self, event: Key) -> None:
+        focused = self.app.focused
+        if not isinstance(focused, DataTable) or focused.id != "process-table":
+            return
+        if event.key not in ("right", "left"):
+            return
+        key = self._current_key
+        if not key:
+            return
+        if key.startswith("p:"):
+            iid = key[2:]
+            if event.key == "right":
+                cp = next((c for c in self._correlated if c.instance_id == iid), None)
+                if cp and cp.connections:
+                    self._expanded.add(iid)
+                    self._render_table(restore_key=key)
+            else:
+                self._expanded.discard(iid)
+                self._render_table(restore_key=key)
+            event.stop()
+        elif key.startswith("c:") and event.key == "left":
+            iid = key.split(":")[1]
+            self._expanded.discard(iid)
+            self._render_table(restore_key=f"p:{iid}")
+            event.stop()
+
     def update_result(self, result: ScanResult) -> None:
         self._correlated = result.correlated
         self._findings = result.findings
+        self._render_table()
 
+    def _render_table(self, restore_key: str | None = None) -> None:
         flagged: dict[str, Finding] = {}
-        for f in result.findings:
+        for f in self._findings:
             existing = flagged.get(f.subject)
             if existing is None or _SEV_ORDER.get(f.severity, 0) > _SEV_ORDER.get(
                 existing.severity, 0
@@ -119,14 +169,18 @@ class AppsScreen(Widget):
                 flagged[f.subject] = f
 
         table = self.query_one("#process-table", DataTable)
+        saved = restore_key or self._current_key
         table.clear()
-        for cp in result.correlated:
+
+        for cp in self._correlated:
             if cp.pid == 0:
                 continue
             identity = cp.observation.identity
+            iid = identity.instance_id
             ports = ", ".join(f":{sock.local_endpoint.port}" for sock in cp.listeners)
             conns_count = len(cp.connections)
-            conn_str = f"[cyan]{conns_count}[/cyan]" if conns_count > 0 else "[dim]0[/dim]"
+            is_exp = iid in self._expanded
+            has_conns = conns_count > 0
 
             suspicious_path = any(
                 p in (identity.executable_path or "") for p in _SUSPICIOUS_PATH_FRAGMENTS
@@ -135,12 +189,17 @@ class AppsScreen(Widget):
             flag, status = _status_badge(cp, finding, suspicious_path)
 
             path_short = identity.executable_path or ""
-            # Trim /Applications/Foo.app/Contents/MacOS/Foo → Foo.app/...
             if "/Applications/" in path_short:
                 parts = path_short.split("/Applications/", 1)
                 path_short = parts[1]
             elif "/Library/" in path_short:
                 path_short = "…/" + path_short.rsplit("/", 2)[-1]
+
+            if has_conns:
+                arrow = "[bold cyan]▼[/bold cyan]" if is_exp else "[dim]▶[/dim]"
+                conn_str = f"{arrow} [cyan]{conns_count}[/cyan]"
+            else:
+                conn_str = "[dim]0[/dim]"
 
             table.add_row(
                 flag,
@@ -151,17 +210,65 @@ class AppsScreen(Widget):
                 conn_str,
                 status,
                 path_short,
-                key=identity.instance_id,
+                key=f"p:{iid}",
             )
+
+            if is_exp:
+                for i, conn in enumerate(cp.connections):
+                    remote_addr = conn.remote_endpoint.address if conn.remote_endpoint else None
+                    remote_port = conn.remote_endpoint.port if conn.remote_endpoint else None
+                    remote_str = (
+                        f"{remote_addr}:{remote_port}" if remote_addr else "—"
+                    )
+                    conn_type = _classify_remote(remote_addr)
+                    table.add_row(
+                        "",
+                        "",
+                        f"  [dim]└[/dim] [dim]{remote_str}[/dim]",
+                        "",
+                        f"[dim]{conn.local_endpoint.address}:{conn.local_endpoint.port}[/dim]",
+                        conn_type,
+                        conn.socket_state.upper(),
+                        "",
+                        key=f"c:{iid}:{i}",
+                    )
+
+        if saved:
+            fallback = f"p:{saved.split(':')[1]}" if saved.startswith("c:") else None
+            self._cursor_to_key(table, saved, fallback)
+
+    def _cursor_to_key(
+        self, table: DataTable[str], target: str, fallback: str | None = None
+    ) -> None:
+        keys = list(table.rows.keys())
+        for i, k in enumerate(keys):
+            if k.value == target:
+                with contextlib.suppress(Exception):
+                    table.move_cursor(row=i)
+                return
+        if fallback:
+            for i, k in enumerate(keys):
+                if k.value == fallback:
+                    with contextlib.suppress(Exception):
+                        table.move_cursor(row=i)
+                    return
 
     def _render_detail(self, row_key_value: str | None) -> None:
         if not row_key_value:
             return
-        cp = next((c for c in self._correlated if c.instance_id == row_key_value), None)
+        if row_key_value.startswith("p:"):
+            self._render_process_detail(row_key_value[2:])
+        elif row_key_value.startswith("c:"):
+            parts = row_key_value.split(":")
+            self._render_conn_detail(parts[1], int(parts[2]))
+
+    def _render_process_detail(self, iid: str) -> None:
+        cp = next((c for c in self._correlated if c.instance_id == iid), None)
         if not cp:
             return
         identity = cp.observation.identity
         proc_findings = [f for f in self._findings if f.subject == identity.name]
+        is_exp = iid in self._expanded
 
         lines: list[str] = [
             f"[bold]{identity.name}[/bold]"
@@ -191,20 +298,15 @@ class AppsScreen(Widget):
                 )
 
         if cp.connections:
-            lines.append("")
-            shown = 0
-            for conn in cp.connections[:5]:
-                remote = (
-                    f"{conn.remote_endpoint.address}:{conn.remote_endpoint.port}"
-                    if conn.remote_endpoint
-                    else "—"
-                )
-                lines.append(
-                    f"  [dim]CONN[/dim]    {remote}  [dim]{conn.socket_state.upper()}[/dim]"
-                )
-                shown += 1
-            if len(cp.connections) > shown:
-                lines.append(f"  [dim]… {len(cp.connections) - shown} more connections[/dim]")
+            n = len(cp.connections)
+            hint = (
+                "[bold]←[/bold] collapse"
+                if is_exp
+                else "[bold]→[/bold] expand  ·  [bold]Enter[/bold] toggle"
+            )
+            lines.append(
+                f"\n  [dim]{n} connection{'s' if n != 1 else ''}  ·  {hint}[/dim]"
+            )
 
         lines.append("")
         lines.append(f"  [dim]Path[/dim]  {identity.executable_path or '(unknown)'}")
@@ -215,9 +317,48 @@ class AppsScreen(Widget):
         with contextlib.suppress(Exception):
             self.query_one("#detail-panel", Static).update("\n".join(lines))
 
+    def _render_conn_detail(self, iid: str, idx: int) -> None:
+        cp = next((c for c in self._correlated if c.instance_id == iid), None)
+        if not cp or idx >= len(cp.connections):
+            return
+        conn = cp.connections[idx]
+        identity = cp.observation.identity
+        remote_addr = conn.remote_endpoint.address if conn.remote_endpoint else None
+        remote_port = conn.remote_endpoint.port if conn.remote_endpoint else None
+        remote_str = f"{remote_addr}:{remote_port}" if remote_addr else "—"
+        conn_type = _classify_remote(remote_addr)
+
+        lines = [
+            f"[bold]{identity.name}[/bold]  [dim](PID {identity.pid})[/dim]"
+            f"  ·  {conn.socket_state.upper()}  ·  {conn_type}",
+            f"  [dim]Local[/dim]   {conn.local_endpoint.address}:{conn.local_endpoint.port}",
+            f"  [dim]Remote[/dim]  {remote_str}",
+            f"  [dim]Proto[/dim]   {conn.local_endpoint.protocol.upper()}",
+        ]
+        if identity.executable_path:
+            lines.append(f"  [dim]Path[/dim]    {identity.executable_path}")
+        lines.append("\n  [dim][bold]←[/bold] collapse to process[/dim]")
+
+        with contextlib.suppress(Exception):
+            self.query_one("#detail-panel", Static).update("\n".join(lines))
+
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        if event.row_key:
+        if event.row_key and event.row_key.value is not None:
+            self._current_key = event.row_key.value
             self._render_detail(event.row_key.value)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        self._render_detail(event.row_key.value)
+        if not event.row_key or event.row_key.value is None:
+            return
+        key = event.row_key.value
+        if key.startswith("p:"):
+            iid = key[2:]
+            cp = next((c for c in self._correlated if c.instance_id == iid), None)
+            if cp and cp.connections:
+                if iid in self._expanded:
+                    self._expanded.discard(iid)
+                else:
+                    self._expanded.add(iid)
+                self._render_table(restore_key=key)
+        else:
+            self._render_detail(key)

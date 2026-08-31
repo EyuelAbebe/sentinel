@@ -377,6 +377,11 @@ main { flex: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: 
 
 /* ── Process list ─────────────────────────────────────────────── */
 .proc-flag { width: 16px; text-align: center; }
+.proc-expand { cursor: pointer; user-select: none; }
+.proc-expand:hover td { background: var(--surface2); }
+.proc-child td { background: var(--bg2); color: var(--muted); font-size: 10px; }
+.proc-child td:first-child { padding-left: 20px; }
+.proc-child:hover td { background: var(--surface2); }
 
 /* ── Status bar ───────────────────────────────────────────────── */
 .status-bar {
@@ -515,8 +520,8 @@ main { flex: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: 
         <div class="panel-header">⇄ Active Connections <span class="ph-badge" id="net-conns-badge">0</span></div>
         <div class="table-wrap">
           <table class="data-table" id="net-conns-table">
-            <thead><tr><th>Process</th><th>Local</th><th>Remote</th><th>State</th></tr></thead>
-            <tbody><tr><td colspan="4"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
+            <thead><tr><th>Process</th><th>PID</th><th>Local / Remote</th><th>Proto</th><th>State</th></tr></thead>
+            <tbody><tr><td colspan="5"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -528,8 +533,8 @@ main { flex: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: 
         <div class="panel-header">⬤ All Processes <span class="ph-badge" id="proc-badge">0</span></div>
         <div class="table-wrap">
           <table class="data-table" id="proc-table">
-            <thead><tr><th class="flag-col">!</th><th>PID</th><th>Name</th><th>User</th><th>Ports</th><th>Path</th></tr></thead>
-            <tbody><tr><td colspan="6"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
+            <thead><tr><th class="flag-col">!</th><th>PID</th><th>Name</th><th>User</th><th>Ports</th><th>Conns</th><th>Path</th></tr></thead>
+            <tbody><tr><td colspan="7"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -650,7 +655,7 @@ function renderAll(data) {
   renderFindings(data.findings || []);
   renderPorts(data.listeners || []);
   renderNetwork(data.listeners || [], data.connections || []);
-  renderProcesses(data.processes || []);
+  renderProcesses(data.processes || [], data.connections || []);
   updateNavBadges(data);
 
   if (data.scan_time) {
@@ -781,43 +786,143 @@ function renderNetwork(listeners, connections) {
     }).join('');
   }
 
-  // Connections table
+  // Connections table — grouped by process
   const ct = document.querySelector('#net-conns-table tbody');
   const conns = connections || [];
   document.getElementById('net-conns-badge').textContent = conns.length;
   if (conns.length === 0) {
-    ct.innerHTML = '<tr><td colspan="4"><div class="empty-msg">No connection data</div></td></tr>';
+    ct.innerHTML = '<tr><td colspan="5"><div class="empty-msg">No connection data</div></td></tr>';
   } else {
-    ct.innerHTML = conns.slice(0, 100).map(c => `<tr>
-      <td class="proc-name">${esc(c.process || '')}</td>
-      <td class="dim-text">${esc(c.local || '')}</td>
-      <td class="mono">${esc(c.remote || '—')}</td>
-      <td class="dim-text">${esc(c.state || '')}</td>
-    </tr>`).join('');
+    renderNetworkConns(ct, conns);
   }
+}
+
+const expandedNetConns = new Set();
+
+function toggleNetConn(procKey) {
+  if (expandedNetConns.has(procKey)) {
+    expandedNetConns.delete(procKey);
+  } else {
+    expandedNetConns.add(procKey);
+  }
+  if (lastScanData) {
+    const ct = document.querySelector('#net-conns-table tbody');
+    renderNetworkConns(ct, lastScanData.connections || []);
+  }
+}
+
+function renderNetworkConns(ct, conns) {
+  // Group by process name+pid
+  const groups = [];
+  const seen = {};
+  for (const c of conns) {
+    const key = `${c.process}:${c.pid}`;
+    if (!seen[key]) {
+      seen[key] = { key, process: c.process, pid: c.pid, items: [] };
+      groups.push(seen[key]);
+    }
+    seen[key].items.push(c);
+  }
+  groups.sort((a, b) => b.items.length - a.items.length);
+
+  const rows = [];
+  for (const g of groups) {
+    const n = g.items.length;
+    const isExp = expandedNetConns.has(g.key);
+    const arrow = isExp ? '▼' : '▶';
+    rows.push(`<tr class="proc-expand" onclick="toggleNetConn('${esc(g.key)}')">
+      <td class="proc-name"><span style="color:var(--cyan)">${arrow}</span> ${esc(g.process || '')}</td>
+      <td class="dim-text">pid ${esc(String(g.pid))}</td>
+      <td class="dim-text">${n} connection${n !== 1 ? 's' : ''}</td>
+      <td></td>
+      <td></td>
+    </tr>`);
+    if (isExp) {
+      for (const c of g.items) {
+        const remote = c.remote ? `${esc(c.remote.address)}:${c.remote.port}` : '—';
+        rows.push(`<tr class="proc-child">
+          <td style="padding-left:18px">└ ${esc(c.local_address)}:${c.local_port}</td>
+          <td></td>
+          <td style="color:var(--cyan)">${remote}</td>
+          <td class="dim-text">${esc(c.protocol)}</td>
+          <td class="dim-text">${esc(c.state)}</td>
+        </tr>`);
+      }
+    }
+  }
+  ct.innerHTML = rows.join('');
 }
 
 // ── Processes ──────────────────────────────────────────────────────────────
 
-function renderProcesses(processes) {
+const expandedProcs = new Set();
+
+function toggleProc(pid) {
+  if (expandedProcs.has(pid)) {
+    expandedProcs.delete(pid);
+  } else {
+    expandedProcs.add(pid);
+  }
+  if (lastScanData) {
+    renderProcesses(lastScanData.processes || [], lastScanData.connections || []);
+  }
+}
+
+function renderProcesses(processes, connections) {
   const tb = document.querySelector('#proc-table tbody');
   document.getElementById('proc-badge').textContent = processes.length;
   if (processes.length === 0) {
-    tb.innerHTML = '<tr><td colspan="6"><div class="empty-msg">No process data — run a scan</div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="7"><div class="empty-msg">No process data — run a scan</div></td></tr>';
     return;
   }
-  tb.innerHTML = processes.slice(0, 200).map(p => {
+
+  // Group connections by pid
+  const connsByPid = {};
+  for (const c of connections) {
+    if (!connsByPid[c.pid]) connsByPid[c.pid] = [];
+    connsByPid[c.pid].push(c);
+  }
+
+  const rows = [];
+  for (const p of processes.slice(0, 200)) {
     const flag = p.has_finding ? '<span style="color:var(--red)">●</span>' : '';
     const ports = (p.ports || []).map(pt => `:${pt}`).join(' ');
-    return `<tr>
+    const pconns = connsByPid[p.pid] || [];
+    const n = pconns.length;
+    const isExp = expandedProcs.has(p.pid);
+    let connCell;
+    if (n > 0) {
+      const arrow = isExp ? '▼' : '▶';
+      connCell = `<span style="color:var(--cyan);cursor:pointer" onclick="event.stopPropagation();toggleProc(${p.pid})">${arrow} ${n}</span>`;
+    } else {
+      connCell = `<span class="dim-text">0</span>`;
+    }
+    const clickAttr = n > 0 ? ` class="proc-expand" onclick="toggleProc(${p.pid})"` : '';
+    rows.push(`<tr${clickAttr}>
       <td class="proc-flag">${flag}</td>
       <td class="dim-text">${esc(String(p.pid))}</td>
       <td class="proc-name">${esc(p.name || '')}</td>
       <td class="dim-text">${esc(p.user || '')}</td>
       <td class="mono" style="color:var(--cyan)">${esc(ports)}</td>
-      <td class="dim-text" style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.path || '')}</td>
-    </tr>`;
-  }).join('');
+      <td>${connCell}</td>
+      <td class="dim-text" style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((p.executable_path || p.path) || '')}</td>
+    </tr>`);
+    if (isExp) {
+      for (const c of pconns) {
+        const remote = c.remote ? `${esc(c.remote.address)}:${c.remote.port}` : '—';
+        const local = `${esc(c.local_address)}:${c.local_port}`;
+        rows.push(`<tr class="proc-child">
+          <td></td>
+          <td></td>
+          <td>└ ${esc(c.protocol)} ${local}</td>
+          <td colspan="2" style="color:var(--cyan)">${remote}</td>
+          <td>${esc(c.state)}</td>
+          <td></td>
+        </tr>`);
+      }
+    }
+  }
+  tb.innerHTML = rows.join('');
 }
 
 // ── Activity log ───────────────────────────────────────────────────────────
