@@ -257,9 +257,9 @@ nav {
 }
 
 /* ── Main content ─────────────────────────────────────────────── */
-main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.section { display: none; flex-direction: column; gap: 14px; }
-.section.active { display: flex; }
+main { flex: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { display: none; flex-direction: column; gap: 14px; min-height: 0; }
+.section.active { display: flex; flex: 1; min-height: 0; }
 
 /* ── Stat cards ───────────────────────────────────────────────── */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -285,7 +285,11 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+/* Panel that grows to fill its flex/grid container */
+.panel-fill { flex: 1; min-height: 0; }
 .panel-header {
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
@@ -305,10 +309,13 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
   padding: 1px 6px;
   border-radius: 8px;
 }
-.panel-body { padding: 10px 14px; }
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.panel-body { padding: 10px 14px; flex: 1; overflow-y: auto; min-height: 0; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; min-height: 0; }
 @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 .full-col { grid-column: 1 / -1; }
+
+/* ── Table scroll wrapper ─────────────────────────────────────── */
+.table-wrap { flex: 1; overflow-x: auto; overflow-y: auto; min-height: 0; }
 
 /* ── Tables ───────────────────────────────────────────────────── */
 .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -355,7 +362,7 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
 .all-clear { color: var(--green); text-align: center; padding: 24px 0; font-size: 13px; }
 
 /* ── Activity log ─────────────────────────────────────────────── */
-#activity-log { max-height: 320px; overflow-y: auto; }
+#activity-log { flex: 1; overflow-y: auto; min-height: 0; }
 .log-row {
   display: flex; gap: 8px; padding: 3px 0;
   border-bottom: 1px solid var(--surface2);
@@ -482,11 +489,11 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
       </div>
 
       <div class="two-col">
-        <div class="panel">
+        <div class="panel" style="min-height:0">
           <div class="panel-header">⚠ Needs Attention <span class="ph-badge" id="ov-find-badge">0</span></div>
           <div class="panel-body" id="ov-findings-body"><div class="empty-msg">Run a scan to see findings</div></div>
         </div>
-        <div class="panel">
+        <div class="panel" style="min-height:0">
           <div class="panel-header">◆ Listening Ports <span class="ph-badge" id="ov-ports-badge">0</span></div>
           <div class="panel-body" style="padding:0" id="ov-ports-body"><div class="empty-msg">Run a scan to see ports</div></div>
         </div>
@@ -495,18 +502,18 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
 
     <!-- ── Network ───────────────────────────────────────────── -->
     <div class="section" id="section-network">
-      <div class="panel">
+      <div class="panel panel-fill">
         <div class="panel-header">◆ Listening Ports <span class="ph-badge" id="net-ports-badge">0</span></div>
-        <div style="overflow-x:auto">
+        <div class="table-wrap">
           <table class="data-table" id="net-ports-table">
             <thead><tr><th class="flag-col"></th><th>Port</th><th>Proto</th><th>Process</th><th>Bind Address</th><th>Exposure</th></tr></thead>
             <tbody><tr><td colspan="6"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
           </table>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel panel-fill">
         <div class="panel-header">⇄ Active Connections <span class="ph-badge" id="net-conns-badge">0</span></div>
-        <div style="overflow-x:auto">
+        <div class="table-wrap">
           <table class="data-table" id="net-conns-table">
             <thead><tr><th>Process</th><th>Local</th><th>Remote</th><th>State</th></tr></thead>
             <tbody><tr><td colspan="4"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
@@ -517,9 +524,9 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
 
     <!-- ── Processes ─────────────────────────────────────────── -->
     <div class="section" id="section-processes">
-      <div class="panel">
+      <div class="panel panel-fill">
         <div class="panel-header">⬤ All Processes <span class="ph-badge" id="proc-badge">0</span></div>
-        <div style="overflow-x:auto">
+        <div class="table-wrap">
           <table class="data-table" id="proc-table">
             <thead><tr><th class="flag-col">!</th><th>PID</th><th>Name</th><th>User</th><th>Ports</th><th>Path</th></tr></thead>
             <tbody><tr><td colspan="6"><div class="empty-msg">No data — run a scan</div></td></tr></tbody>
@@ -530,7 +537,7 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
 
     <!-- ── Findings ──────────────────────────────────────────── -->
     <div class="section" id="section-findings">
-      <div class="panel">
+      <div class="panel panel-fill">
         <div class="panel-header">● Security Findings <span class="ph-badge" id="find-badge">0</span></div>
         <div class="panel-body" id="find-body"><div class="empty-msg">No data — run a scan</div></div>
       </div>
@@ -538,9 +545,9 @@ main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: 
 
     <!-- ── Activity ──────────────────────────────────────────── -->
     <div class="section" id="section-activity">
-      <div class="panel full-col">
+      <div class="panel panel-fill full-col">
         <div class="panel-header">▸ Live Activity <span class="ph-badge" id="act-badge">0</span></div>
-        <div class="panel-body" style="padding:6px 14px">
+        <div class="panel-body" style="padding:6px 14px;display:flex;flex-direction:column">
           <div id="activity-log"><div class="empty-msg">Waiting for events…</div></div>
         </div>
       </div>
