@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.events import Key
 from textual.message import Message
-from textual.widgets import Header, TabbedContent, TabPane
+from textual.widgets import Header, Input, TabbedContent, TabPane
 
 from sentinel.application.event_bus import EventBus
 from sentinel.application.live_monitor import LiveMonitorService
@@ -136,10 +137,16 @@ class SentinelApp(App[None]):
         Binding("6", "tab_users", "Users", show=False),
         Binding("7", "tab_resources", "Resources", show=False),
         Binding("slash", "focus_search", "Search", key_display="/", show=True),
-        # priority=True so these fire before focused DataTable consumes the keys
-        Binding("left", "prev_tab", "← Tab", key_display="←", show=False, priority=True),
-        Binding("right", "next_tab", "→ Tab", key_display="→", show=False, priority=True),
     ]
+
+    def on_key(self, event: Key) -> None:
+        # Left/right switch tabs unless a text Input has focus (where they move cursor)
+        if event.key in ("left", "right") and not isinstance(self.focused, Input):
+            event.stop()
+            if event.key == "left":
+                self.action_prev_tab()
+            else:
+                self.action_next_tab()
 
     def __init__(self) -> None:
         super().__init__()

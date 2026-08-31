@@ -33,7 +33,7 @@ from sentinel.log import get_logger
 
 logger = get_logger("api")
 
-_DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8")
+_DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 # ── application state ─────────────────────────────────────────────────────────
 
@@ -89,7 +89,8 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard() -> HTMLResponse:
-    return HTMLResponse(content=_DASHBOARD_HTML)
+    # Read fresh from disk so dashboard edits take effect without restarting the server
+    return HTMLResponse(content=_DASHBOARD_PATH.read_text(encoding="utf-8"))
 
 
 @app.get("/health")
