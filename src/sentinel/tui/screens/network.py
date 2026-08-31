@@ -5,7 +5,7 @@ import ipaddress
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Key
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
@@ -76,12 +76,14 @@ class NetworkScreen(Widget):
     #connections-table {
         height: 1fr;
     }
-    #net-detail {
+    #net-detail-scroll {
         height: 7;
         border-top: solid #00ff9f;
-        padding: 1 2;
         background: #0d1521;
         color: #a0c8e8;
+    }
+    #net-detail {
+        padding: 1 2;
     }
     """
 
@@ -113,14 +115,15 @@ class NetworkScreen(Widget):
                 conns: DataTable[str] = DataTable(id="connections-table", cursor_type="row")
                 conns.add_columns("Process", "Local", "Remote", "Type", "State")
                 yield conns
-        yield Static(
-            "[dim]↑ ↓  navigate  ·  →  expand  ·  ←  collapse  ·  Enter  toggle  ·  Tab  switch panes[/dim]",
-            id="net-detail",
-        )
+        with VerticalScroll(id="net-detail-scroll"):
+            yield Static(
+                "[dim]↑ ↓  navigate  ·  Enter  expand/collapse  ·  Tab  switch panes[/dim]",
+                id="net-detail",
+            )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
-                ("→←", "Expand"),
+                ("Enter", "Expand"),
                 ("Tab", "Switch"),
                 ("s", "Rescan"),
                 ("1-7", "Tabs"),

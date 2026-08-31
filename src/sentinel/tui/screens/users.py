@@ -5,7 +5,7 @@ import os
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
@@ -45,36 +45,45 @@ _EXPOSURE_SHORT: dict[ExposureLevel, str] = {
 }
 
 
-def _classify_user(username: str | None) -> tuple[str, str, str]:
-    """Return (Rich table markup, full role description, icon)."""
+def _classify_user(username: str | None) -> tuple[str, str, str, str]:
+    """Return (table name markup, role description, icon, short type)."""
     if not username or username == "(unknown)":
-        return ("[dim]unknown[/dim]", "Unknown — no identity", "?")
+        return ("[dim]unknown[/dim]", "Unknown — no identity", "?", "?")
     u = username.lower()
     if u == "root":
         return (
             "[bold red]root[/bold red]",
             "root — full system privileges, highest risk",
             "[bold red]⬛[/bold red]",
+            "[bold red]root[/bold red]",
         )
     if u.startswith("_"):
         return (
             f"[dim]{username}[/dim]",
             f"{username} — macOS system service account",
             "[dim]◆[/dim]",
+            "[dim]sys[/dim]",
         )
     if u in _KNOWN_SYSTEM_DAEMONS:
         return (
             f"[dim]{username}[/dim]",
             f"{username} — system daemon",
             "[dim]·[/dim]",
+            "[dim]daemon[/dim]",
         )
     if _CURRENT_USER and u == _CURRENT_USER.lower():
         return (
             f"[green]{username}[/green]",
             f"{username} — you (interactive login user)",
             "[green]●[/green]",
+            "[green]you[/green]",
         )
-    return (f"[cyan]{username}[/cyan]", f"{username} — standard user", "[cyan]◇[/cyan]")
+    return (
+        f"[cyan]{username}[/cyan]",
+        f"{username} — standard user",
+        "[cyan]◇[/cyan]",
+        "[cyan]user[/cyan]",
+    )
 
 
 class UsersScreen(Widget):
@@ -96,9 +105,11 @@ class UsersScreen(Widget):
     }
     #user-detail-pane {
         width: 3fr;
-        padding: 1 2;
         background: #0d1521;
         color: #a0c8e8;
+    }
+    #user-detail {
+        padding: 1 2;
     }
     """
 
@@ -112,16 +123,17 @@ class UsersScreen(Widget):
         with Horizontal(id="users-area"):
             with Vertical(id="users-table-pane"):
                 table: DataTable[str] = DataTable(id="users-table", cursor_type="row")
-                table.add_columns("", "User", "Role", "Procs", "Ports", "Conns", "Issues")
+                table.add_columns("User", "Type", "Procs", "Ports", "Conns", "Issues")
                 yield table
-            with Vertical(id="user-detail-pane"):
+            with VerticalScroll(id="user-detail-pane"):
                 yield Static(
-                    "[dim]← Select a user to see their processes and details[/dim]",
+                    "[dim]Select a user to see their processes and details[/dim]",
                     id="user-detail",
                 )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
+                ("Enter", "Detail"),
                 ("s", "Rescan"),
                 ("1-7", "Tabs"),
                 ("?", "Help"),
@@ -164,7 +176,7 @@ class UsersScreen(Widget):
             return (is_me, -len(procs))
 
         for username, procs in sorted(by_user.items(), key=sort_key):
-            role_markup, _, icon = _classify_user(username)
+            name_markup, _, icon, short_type = _classify_user(username)
             port_count = sum(len(cp.listeners) for cp in procs)
             conn_count = sum(len(cp.connections) for cp in procs)
             f_count = finding_counts.get(username, 0)
@@ -175,9 +187,8 @@ class UsersScreen(Widget):
             idx = len(self._user_rows)
             self._user_rows.append(username)
             table.add_row(
-                icon,
-                username,
-                role_markup,
+                f"{icon} {name_markup}",
+                short_type,
                 str(len(procs)),
                 str(port_count),
                 conn_label,
@@ -195,7 +206,7 @@ class UsersScreen(Widget):
             if (cp.observation.identity.user or "(unknown)") == username and cp.pid != 0
         ]
 
-        _, role_str, icon = _classify_user(username)
+        _, role_str, icon, _ = _classify_user(username)
         flagged_names = {f.subject for f in self._findings}
 
         pid_set = {cp.pid for cp in procs}
@@ -230,14 +241,7 @@ class UsersScreen(Widget):
             "  [bold cyan]── Processes ──────────────────────────────[/bold cyan]",
         ]
 
-        for shown, cp in enumerate(sorted_procs):
-            if shown >= 12:
-                remaining = len(procs) - shown
-                lines.append(
-                    f"    [dim]… {remaining} more process{'es' if remaining != 1 else ''}[/dim]"
-                )
-                break
-
+        for cp in sorted_procs:
             ppid = cp.observation.identity.parent_pid
             is_child = ppid is not None and ppid in pid_set
             indent = "    " if is_child else "  "
