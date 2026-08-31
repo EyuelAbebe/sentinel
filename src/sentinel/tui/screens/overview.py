@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import RichLog, Static
 
@@ -38,26 +38,37 @@ class OverviewScreen(Widget):
         background: #0d1521;
         color: #2a6a8a;
     }
+    #main-area {
+        height: 1fr;
+    }
+    #attention-pane {
+        width: 3fr;
+        border-right: solid #1a3a5a;
+    }
     #attention-header {
+        height: 1;
         padding: 0 2;
-        margin-top: 1;
         color: #00e5ff;
         text-style: bold;
+        background: #080e18;
     }
     #attention-area {
         height: 1fr;
         padding: 0 2;
-        min-height: 3;
         background: #080e18;
     }
+    #activity-pane {
+        width: 2fr;
+    }
     #activity-header {
+        height: 1;
         padding: 0 2;
         color: #00e5ff;
         text-style: bold;
+        background: #080e18;
     }
     #activity-log {
-        height: 10;
-        border-top: solid #00ff9f;
+        height: 1fr;
         background: #0d1521;
     }
     """
@@ -69,17 +80,22 @@ class OverviewScreen(Widget):
     def compose(self) -> ComposeResult:
         yield SummaryBar(id="summary")
         yield Static("[dim]Waiting for first scan...[/dim]", id="scan-status")
-        yield Static(
-            "── NEEDS ATTENTION ──────────────────────────────────────", id="attention-header"
-        )
-        yield VerticalScroll(
-            Static("[dim]Scanning...[/dim]", id="attention-content"),
-            id="attention-area",
-        )
-        yield Static(
-            "── LIVE ACTIVITY ────────────────────────────────────────", id="activity-header"
-        )
-        yield RichLog(id="activity-log", highlight=True, markup=True, max_lines=200)
+        with Horizontal(id="main-area"):
+            with Vertical(id="attention-pane"):
+                yield Static(
+                    "── NEEDS ATTENTION ──────────────────────────────────",
+                    id="attention-header",
+                )
+                yield VerticalScroll(
+                    Static("[dim]Scanning...[/dim]", id="attention-content"),
+                    id="attention-area",
+                )
+            with Vertical(id="activity-pane"):
+                yield Static(
+                    "── LIVE ACTIVITY ─────────────────────────────────────",
+                    id="activity-header",
+                )
+                yield RichLog(id="activity-log", highlight=True, markup=True, max_lines=200)
         yield KeyBar(
             [
                 ("1-7", "Tabs"),
@@ -133,9 +149,15 @@ class OverviewScreen(Widget):
         content = self.query_one("#attention-content", Static)
         if not result.findings:
             content.update(
-                f"[green]✓  No issues detected[/green]  "
-                f"[dim]— {result.process_count} processes"
-                f" and {result.listener_count} ports look normal[/dim]"
+                f"[green]✓  No issues detected[/green]\n\n"
+                f"[dim]Scanned {result.process_count} processes"
+                f"  ·  {result.listener_count} open ports"
+                f"  ·  {result.connection_count} active connections\n\n"
+                f"Signals checked:\n"
+                f"  · all-interface listeners (0.0.0.0 / ::)\n"
+                f"  · suspicious executable paths (/tmp /Downloads)\n"
+                f"  · missing executables (running but binary deleted)\n"
+                f"  · known tracker / advertising connections[/dim]"
             )
             return
 

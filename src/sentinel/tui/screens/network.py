@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
@@ -13,16 +15,35 @@ from sentinel.domain.enums import ExposureLevel
 from sentinel.tui.widgets.key_bar import KeyBar
 
 _EXPOSURE_LABEL: dict[ExposureLevel, str] = {
-    ExposureLevel.LOOPBACK: "[green]Localhost only[/green]",
-    ExposureLevel.LOCAL_NETWORK: "[yellow]Local network[/yellow]",
-    ExposureLevel.ALL_INTERFACES: "[bold red]All interfaces ⚠[/bold red]",
+    ExposureLevel.LOOPBACK: "[green]Localhost[/green]",
+    ExposureLevel.LOCAL_NETWORK: "[yellow]Local net[/yellow]",
+    ExposureLevel.ALL_INTERFACES: "[bold red]All ifaces ⚠[/bold red]",
 }
 
 _EXPOSURE_FLAG: dict[ExposureLevel, str] = {
-    ExposureLevel.LOOPBACK: "",
+    ExposureLevel.LOOPBACK: "[green]✓[/green]",
     ExposureLevel.LOCAL_NETWORK: "[yellow]◆[/yellow]",
     ExposureLevel.ALL_INTERFACES: "[bold red]⚠[/bold red]",
 }
+
+
+def _classify_remote(address: str | None) -> str:
+    """Classify a remote IP address into a human-readable connection type."""
+    if not address:
+        return "[dim]—[/dim]"
+    try:
+        ip = ipaddress.ip_address(address)
+        if ip.is_loopback:
+            return "[green]loopback[/green]"
+        if ip.is_private:
+            return "[yellow]local-net[/yellow]"
+        if ip.is_global:
+            return "[cyan]external[/cyan]"
+        if ip.is_link_local:
+            return "[dim]link-local[/dim]"
+    except ValueError:
+        pass
+    return "[dim]unknown[/dim]"
 
 
 class NetworkScreen(Widget):
@@ -32,23 +53,31 @@ class NetworkScreen(Widget):
         height: 1fr;
         background: #080e18;
     }
+    #tables-area {
+        height: 1fr;
+    }
+    #listeners-pane {
+        width: 1fr;
+        border-right: solid #1a3a5a;
+    }
+    #connections-pane {
+        width: 1fr;
+    }
     .section-label {
         height: 1;
-        padding: 0 2;
+        padding: 0 1;
         color: #00e5ff;
         text-style: bold;
         background: #080e18;
     }
     #listeners-table {
         height: 1fr;
-        min-height: 5;
     }
     #connections-table {
         height: 1fr;
-        min-height: 5;
     }
     #net-detail {
-        height: 8;
+        height: 7;
         border-top: solid #00ff9f;
         padding: 1 2;
         background: #0d1521;
@@ -62,30 +91,33 @@ class NetworkScreen(Widget):
         self._connection_rows: list[tuple[CorrelatedProcess, Any]] = []
 
     def compose(self) -> ComposeResult:
+        with Horizontal(id="tables-area"):
+            with Vertical(id="listeners-pane"):
+                yield Static(
+                    "── LISTENING PORTS ──",
+                    classes="section-label",
+                    id="listeners-label",
+                )
+                listeners: DataTable[str] = DataTable(id="listeners-table", cursor_type="row")
+                listeners.add_columns("!", "Port", "Proto", "Process", "Exposure")
+                yield listeners
+            with Vertical(id="connections-pane"):
+                yield Static(
+                    "── ACTIVE CONNECTIONS ──",
+                    classes="section-label",
+                    id="connections-label",
+                )
+                conns: DataTable[str] = DataTable(id="connections-table", cursor_type="row")
+                conns.add_columns("Process", "Local", "Remote", "Type", "State")
+                yield conns
         yield Static(
-            "── LISTENING PORTS ──────────────────────────────────────",
-            classes="section-label",
-            id="listeners-label",
-        )
-        listeners: DataTable[str] = DataTable(id="listeners-table", cursor_type="row")
-        listeners.add_columns("!", "Port", "Proto", "Process", "Exposure")
-        yield listeners
-        yield Static(
-            "── ACTIVE CONNECTIONS ───────────────────────────────────",
-            classes="section-label",
-            id="connections-label",
-        )
-        conns: DataTable[str] = DataTable(id="connections-table", cursor_type="row")
-        conns.add_columns("Process", "Local", "Remote", "State")
-        yield conns
-        yield Static(
-            "[dim]↑ ↓  navigate rows  ·  Tab  switch between tables  ·  arrow keys show details below[/dim]",
+            "[dim]↑ ↓  navigate  ·  Tab  switch tables  ·  details below[/dim]",
             id="net-detail",
         )
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
-                ("Tab", "Switch table"),
+                ("Tab", "Switch"),
                 ("s", "Rescan"),
                 ("p", "Pause"),
                 ("1-7", "Tabs"),
@@ -124,15 +156,18 @@ class NetworkScreen(Widget):
             for sock in cp.connections:
                 idx = len(self._connection_rows)
                 self._connection_rows.append((cp, sock))
-                remote = (
+                remote_addr = sock.remote_endpoint.address if sock.remote_endpoint else None
+                remote_str = (
                     f"{sock.remote_endpoint.address}:{sock.remote_endpoint.port}"
                     if sock.remote_endpoint
                     else "—"
                 )
+                conn_type = _classify_remote(remote_addr)
                 conns_table.add_row(
                     cp.name,
                     f"{sock.local_endpoint.address}:{sock.local_endpoint.port}",
-                    remote,
+                    remote_str,
+                    conn_type,
                     sock.socket_state.upper(),
                     key=str(idx),
                 )
@@ -141,11 +176,11 @@ class NetworkScreen(Widget):
         n_conns = len(self._connection_rows)
         self.query_one("#listeners-label", Static).update(
             f"── LISTENING PORTS ({n_listeners})"
-            f"  [dim][bold red]⚠[/bold red]=all-interfaces  [yellow]◆[/yellow]=local-network[/dim]"
-            f"  ────────────────────"
+            f"  [dim][bold red]⚠[/bold red]=all  [yellow]◆[/yellow]=local  [green]✓[/green]=loop[/dim]"
         )
         self.query_one("#connections-label", Static).update(
-            f"── ACTIVE CONNECTIONS ({n_conns}) ─────────────────────────────────"
+            f"── ACTIVE CONNECTIONS ({n_conns})"
+            f"  [dim][cyan]ext[/cyan] [yellow]local[/yellow] [green]loop[/green][/dim]"
         )
 
         if n_listeners == 0 and n_conns == 0:
@@ -165,14 +200,14 @@ class NetworkScreen(Widget):
         lines = [
             f"[bold]:{sock.local_endpoint.port}[/bold]"
             f"  [dim]{sock.local_endpoint.protocol.upper()}[/dim]"
-            f"  ·  [dim]owned by[/dim] [bold]{cp.name}[/bold]  [dim](PID {cp.pid})[/dim]",
-            "",
-            f"  [dim]Bind address[/dim]  {sock.local_endpoint.address}",
-            f"  [dim]Exposure[/dim]     {exposure_label}",
-            f"  [dim]Process[/dim]      {cp.name}",
+            f"  ·  [dim]owned by[/dim] [bold]{cp.name}[/bold]  [dim](PID {cp.pid})[/dim]"
+            f"  ·  {exposure_label}",
+            f"  [dim]Bind[/dim]  {sock.local_endpoint.address}",
         ]
         if cp.observation.identity.executable_path:
-            lines.append(f"  [dim]Path[/dim]         {cp.observation.identity.executable_path}")
+            lines.append(f"  [dim]Path[/dim]  {cp.observation.identity.executable_path}")
+        if cp.observation.identity.user:
+            lines.append(f"  [dim]User[/dim]  {cp.observation.identity.user}")
         with contextlib.suppress(Exception):
             self.query_one("#net-detail", Static).update("\n".join(lines))
 
@@ -180,17 +215,19 @@ class NetworkScreen(Widget):
         if idx < 0 or idx >= len(self._connection_rows):
             return
         cp, conn = self._connection_rows[idx]
-        remote = (
+        remote_addr = conn.remote_endpoint.address if conn.remote_endpoint else None
+        remote_str = (
             f"{conn.remote_endpoint.address}:{conn.remote_endpoint.port}"
             if conn.remote_endpoint
             else "—"
         )
+        conn_type = _classify_remote(remote_addr)
         lines = [
             f"[bold]{cp.name}[/bold]  [dim](PID {cp.pid})[/dim]"
-            f"  ·  [dim]state:[/dim] {conn.socket_state.upper()}",
-            "",
+            f"  ·  [dim]state:[/dim] {conn.socket_state.upper()}"
+            f"  ·  [dim]type:[/dim] {conn_type}",
             f"  [dim]Local[/dim]   {conn.local_endpoint.address}:{conn.local_endpoint.port}",
-            f"  [dim]Remote[/dim]  {remote}",
+            f"  [dim]Remote[/dim]  {remote_str}",
             f"  [dim]Proto[/dim]   {conn.local_endpoint.protocol.upper()}",
         ]
         if cp.observation.identity.executable_path:

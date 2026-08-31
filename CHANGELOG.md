@@ -11,6 +11,37 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.6.0] — 2026-08-31
+
+### Changed
+
+**TUI: horizontal split layouts across all screens**
+- Overview: attention panel (left 60 %) and live activity log (right 40 %) are now visible
+  side-by-side at the same time instead of stacking vertically
+- Network: listening-ports table and active-connections table rendered side by side so both
+  are visible simultaneously; detail panel remains at the bottom
+- Apps: new `Conns` and `Status` columns — see active connection count and per-process risk
+  badge (`CLEAN / SUSPECT / LISTENING / FLAGGED`) inline without opening the detail panel;
+  path column smart-trims `/Applications/…` and `/Library/…` prefixes for readability
+- Users: user table and detail panel are now side by side; detail panel shows a full
+  annotated process list with port → exposure chain (`loop` / `local` / `all ⚠`),
+  child-process markers, and connection counts per process; icon column shows user
+  classification at a glance (root ⬛, macOS service ◆, you ●, user ◇)
+- Resources: system metrics (CPU bars, RAM, Disk I/O, Network I/O) are on the left,
+  top-processes table on the right — both visible simultaneously; per-core CPU bars now
+  render 4 across for efficiency
+
+**Network connections: remote endpoint classification**
+- New `Type` column in the connections table: `loopback` (green), `local-net` (yellow),
+  `external` (cyan) — instant visibility into whether a process is reaching out to the
+  internet, a local device, or just talking to itself
+
+**Overview: richer all-clear panel**
+- When no findings, the attention pane now lists all checked signals and scan counts so the
+  tab is informative even when everything is healthy
+
+---
+
 ## [0.4.0] — 2026-08-29
 
 ### Added

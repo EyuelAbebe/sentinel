@@ -7,6 +7,7 @@ from typing import Any
 
 import psutil
 from textual.app import ComposeResult
+from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
 from textual.widgets import DataTable, Static
 
@@ -69,24 +70,31 @@ class ResourcesScreen(Widget):
         height: 1fr;
         background: #080e18;
     }
+    #res-area {
+        height: 1fr;
+    }
+    #metrics-pane {
+        width: 2fr;
+        border-right: solid #1a3a5a;
+    }
     #metrics {
-        height: auto;
-        min-height: 10;
+        height: 1fr;
         padding: 1 2;
         background: #0d1521;
-        border-bottom: solid #00ff9f;
         color: #a0c8e8;
+    }
+    #procs-pane {
+        width: 3fr;
     }
     #top-label {
         height: 1;
-        padding: 0 2;
+        padding: 0 1;
         color: #00e5ff;
         text-style: bold;
         background: #080e18;
     }
     #top-procs {
         height: 1fr;
-        min-height: 5;
     }
     """
 
@@ -96,14 +104,17 @@ class ResourcesScreen(Widget):
         self._primed = False
 
     def compose(self) -> ComposeResult:
-        yield Static("[dim]Gathering system data…[/dim]", id="metrics")
-        yield Static(
-            "── TOP PROCESSES BY CPU ─────────────────────────────────",
-            id="top-label",
-        )
-        table: DataTable[str] = DataTable(id="top-procs", cursor_type="row")
-        table.add_columns("Name", "PID", "User", "CPU %", "Mem %", "RSS")
-        yield table
+        with Horizontal(id="res-area"):
+            with Vertical(id="metrics-pane"):
+                yield Static("[dim]Gathering system data…[/dim]", id="metrics")
+            with Vertical(id="procs-pane"):
+                yield Static(
+                    "── TOP PROCESSES BY CPU ──────────────────────────",
+                    id="top-label",
+                )
+                table: DataTable[str] = DataTable(id="top-procs", cursor_type="row")
+                table.add_columns("Name", "PID", "User", "CPU %", "Mem %", "RSS")
+                yield table
         yield KeyBar(
             [
                 ("↑↓", "Navigate"),
@@ -221,24 +232,26 @@ def _build_metrics_text(
 ) -> list[str]:
     lines: list[str] = []
 
+    phys = psutil.cpu_count(logical=False) or "?"
+    logi = psutil.cpu_count(logical=True) or "?"
+
     # CPU overall bar
     lines.append(
-        f"[bold cyan]CPU[/bold cyan]  {_bar(cpu_total, 36)}"
+        f"[bold cyan]CPU[/bold cyan]  {_bar(cpu_total, 28)}"
         f"  [bold]{cpu_total:.1f}%[/bold]"
-        f"  [dim]{psutil.cpu_count(logical=False) or '?'} cores"
-        f"  ({psutil.cpu_count(logical=True) or '?'} logical)[/dim]"
+        f"  [dim]{phys} cores ({logi} logical)[/dim]"
     )
 
-    # Per-core bars — two per line
+    # Per-core bars — 4 per line for wide terminals
     cores = cpu_cores or []
-    for i in range(0, len(cores), 2):
+    for i in range(0, len(cores), 4):
         parts: list[str] = []
-        for j in range(2):
+        for j in range(4):
             ci = i + j
             if ci < len(cores):
                 c = cores[ci]
-                parts.append(f"  [dim]{ci:2d}[/dim] {_mini_bar(c, 12)} {c:4.0f}%")
-        lines.append("".join(parts))
+                parts.append(f" [dim]{ci:2d}[/dim]{_mini_bar(c, 8)}{c:3.0f}%")
+        lines.append(" " + "  ".join(parts))
 
     lines.append("")
 
@@ -247,10 +260,10 @@ def _build_metrics_text(
     mem_total_gb = mem.total / (1024**3)
     mem_avail_gb = mem.available / (1024**3)
     lines.append(
-        f"[bold cyan]RAM[/bold cyan]  {_bar(mem.percent, 36)}"
+        f"[bold cyan]RAM[/bold cyan]  {_bar(mem.percent, 28)}"
         f"  [bold]{mem.percent:.0f}%[/bold]"
-        f"  [dim]{mem_used_gb:.1f} GB used  ·  {mem_avail_gb:.1f} GB free"
-        f"  ·  {mem_total_gb:.1f} GB total[/dim]"
+        f"  [dim]{mem_used_gb:.1f}/{mem_total_gb:.1f} GB"
+        f"  ({mem_avail_gb:.1f} free)[/dim]"
     )
 
     # Swap
@@ -259,27 +272,29 @@ def _build_metrics_text(
         swap_used_gb = swap.used / (1024**3)
         swap_total_gb = swap.total / (1024**3)
         lines.append(
-            f"[dim]Swap[/dim] {_bar(swap.percent, 36)}"
-            f"  [dim]{swap.percent:.0f}%  ·  {swap_used_gb:.1f} / {swap_total_gb:.1f} GB[/dim]"
+            f"[dim]Swap[/dim] {_bar(swap.percent, 28)}"
+            f"  [dim]{swap.percent:.0f}%  {swap_used_gb:.1f}/{swap_total_gb:.1f} GB[/dim]"
         )
 
     lines.append("")
 
     # Disk I/O
+    lines.append("[bold cyan]Disk I/O[/bold cyan]")
     lines.append(
-        f"[bold cyan]Disk[/bold cyan] "
-        f" ↓ Read  [cyan]{_fmt_bytes(disk_read)}/s[/cyan]"
-        f"     ↑ Write [cyan]{_fmt_bytes(disk_write)}/s[/cyan]"
+        f"  [dim]↓ Read [/dim] [cyan]{_fmt_bytes(disk_read):>10}/s[/cyan]"
+        f"   [dim]↑ Write[/dim] [cyan]{_fmt_bytes(disk_write):>10}/s[/cyan]"
     )
+
+    lines.append("")
 
     # Network I/O
+    lines.append("[bold cyan]Network I/O[/bold cyan]")
     lines.append(
-        f"[bold cyan]Net[/bold cyan]  "
-        f" ↓ Recv  [cyan]{_fmt_bytes(net_recv)}/s[/cyan]"
-        f"     ↑ Sent  [cyan]{_fmt_bytes(net_sent)}/s[/cyan]"
+        f"  [dim]↓ Recv [/dim] [cyan]{_fmt_bytes(net_recv):>10}/s[/cyan]"
+        f"   [dim]↑ Sent [/dim] [cyan]{_fmt_bytes(net_sent):>10}/s[/cyan]"
     )
 
-    # GPU note (psutil doesn't expose GPU; no root-free API on macOS)
-    lines.append("[dim]GPU  not available — psutil does not expose GPU metrics on macOS[/dim]")
+    lines.append("")
+    lines.append("[dim]GPU  — not available via psutil on macOS[/dim]")
 
     return lines
