@@ -11,6 +11,35 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.7.0] — 2026-08-31
+
+### Added
+
+**README: real screenshots replace ASCII art**
+- 7 TUI tab screenshots (Overview, Apps, Network, Findings, Search, Users, Resources) captured from a live headless run
+- 5 browser dashboard screenshots (Overview, Network, Processes, Findings, Activity) captured with Playwright
+- `scripts/take_screenshots.py` and `scripts/capture_dashboard.py` for regenerating screenshots
+
+### Fixed
+
+**Browser dashboard: per-panel scrolling**
+- Tables and content lists scroll inside their own panel instead of scrolling the whole page
+- Network, Processes, Findings, and Activity panels grow to fill screen height and scroll independently
+
+**TUI: search returns results for processes without open sockets**
+- Searching by process name now shows a `PROC` row for any name/path match, not just processes with open ports
+
+**TUI: arrow keys switch tabs without breaking search Input**
+- Left/right arrow in the search input no longer accidentally switches tabs
+
+**Network collection on macOS without root**
+- `proc.net_connections()` pconn namedtuples are now wrapped with `.pid` so the correlator can join sockets to processes; the network tab was previously empty without root
+
+**Browser dashboard: hot-reload without server restart**
+- Dashboard HTML is read from disk on each request instead of being cached at startup
+
+---
+
 ## [0.6.0] — 2026-08-31
 
 ### Changed
